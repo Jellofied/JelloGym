@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { recapPeriod, recapOf, recapDue, lifeRecapOf, lifeRecapDue, lifeOfYear } from './recap.js'
+import { recapPeriod, shownRecapPeriod, recapOf, recapDue, lifeRecapOf, lifeRecapDue, lifeOfYear } from './recap.js'
+import { fmtDateRange } from './format.js'
 
 const BENCH = '0025'
 const wk = (d, n = 3, prs = []) => ({ id: 'w' + d, d, start: new Date(d + 'T10:00:00').getTime(), end: new Date(d + 'T11:00:00').getTime(), prs, entries: [{ id: BENCH, target: { mode: 'reps' }, sets: Array.from({ length: n }, () => ({ w: 100, r: 5, done: true })) }] })
@@ -12,6 +13,15 @@ describe('week and month recap', () => {
     expect(recapPeriod(S(), '2026-10-28')).toBe(null)
     // a Sunday week start
     expect(recapPeriod(S({ weekStart: 0 }), '2026-10-25').kind).toBe('week')
+  })
+  test('the shown stretch is a real local week when no recap is due, never Invalid Date', () => {
+    const p = shownRecapPeriod(S(), '2026-11-25')
+    expect(p).toEqual({ kind: 'week', from: '2026-11-16', to: '2026-11-22', key: 'w:2026-11-16' })
+    // This is the label /recap builds. With no `today` the old fallback made both ends NaN.
+    const label = fmtDateRange(p.from, p.to, true, new Date('2026-11-25T12:00:00'))
+    expect(label).toBe('Mon 16 Nov – Sun 22 Nov')
+    expect(label).not.toContain('Invalid Date')
+    expect(shownRecapPeriod(S(), '2026-10-26')).toEqual(recapPeriod(S(), '2026-10-26'))
   })
   test('the numbers are the report’s: workouts, volume, sets, PRs and the top muscle', () => {
     const r = recapOf(S(), recapPeriod(S(), '2026-10-26'), '2026-10-26')

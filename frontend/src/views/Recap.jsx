@@ -5,22 +5,10 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { fmtVol, fmtDur, fmtDateRange } from '../lib/format.js'
 import { isOn } from '../lib/modules.js'
-import { recapPeriod, recapOf, lifeRecapOf } from '../lib/recap.js'
+import { shownRecapPeriod, recapOf, lifeRecapOf } from '../lib/recap.js'
 import { recapSheet } from '../components/Recap.jsx'
 import Icon from '../components/Icon.jsx'
 import { Button } from '../components/ui.jsx'
-// A day inside the current stretch would be odd: show the last closed one instead.
-function shownPeriod(S, today) {
-  const p = recapPeriod(S, today)
-  if (p) return p
-  const d = new Date(today + 'T12:00:00')
-  const ws = S.weekStart == null ? 1 : S.weekStart
-  const back = (d.getDay() - ws + 7) % 7
-  const to = new Date(d); to.setDate(to.getDate() - back - 1)
-  const from = new Date(to); from.setDate(from.getDate() - 6)
-  const iso = x => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
-  return { kind: 'week', from: iso(from), to: iso(to), key: 'w:' + iso(from) }
-}
 
 function Section({ icon, tint, title, sub, lines, to, nav }) {
   return <div className="card" style={{ marginBottom: 8 }}>
@@ -40,7 +28,7 @@ function Section({ icon, tint, title, sub, lines, to, nav }) {
 export default function LifeRecap() {
   const nav = useNavigate()
   const S = useStore(s => s.S)
-  const p = shownPeriod(S)
+  const p = shownRecapPeriod(S)
   const r = lifeRecapOf(S, p)
   const days = Math.round((new Date(p.to + 'T12:00:00') - new Date(p.from + 'T12:00:00')) / 86400000) + 1
   const w = isOn(S, 'motivation') ? recapOf(S, p) : null
