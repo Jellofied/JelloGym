@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { t } from '../lib/i18n.js'
-import { decodeSource } from '../lib/scan-web.js'
 import { Button } from '../components/ui.jsx'
 
 // Live camera scanner for the browser/PWA (the app build uses ML Kit's own UI instead — see
@@ -34,11 +33,16 @@ export default function CameraScan({ onFound, onCancel }) {
       if (!v) return
       v.srcObject = stream
       try { await v.play() } catch (e) { /* autoplay policies; the loop below waits for frames */ }
+      // The decoder is also loaded on demand by lib/scan.js. Importing it here at module scope
+      // would pin scan-web.js into this sheet's chunk and defeat that split.
+      let decoder
+      try { decoder = await import('../lib/scan-web.js') } catch (e) { stop(); setError('unavailable'); return }
+      if (done) { stream.getTracks().forEach(tr => tr.stop()); return }
       const tick = async () => {
         if (done) return
         if (v.readyState >= 2) {
           let code = null
-          try { code = await decodeSource(v) } catch (e) { /* keep trying */ }
+          try { code = await decoder.decodeSource(v) } catch (e) { /* keep trying */ }
           if (code && !done) { stop(); onFound(code); return }
         }
         timer = setTimeout(tick, 150)
