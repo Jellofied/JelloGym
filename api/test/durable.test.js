@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { atomicWrite } from '../durable.js';
+import { posixOnly } from './helpers.mjs';
 
 test('atomicWrite: bytes flushed, then the rename, then the directory', t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'durable-'));
@@ -22,7 +23,8 @@ test('atomicWrite: bytes flushed, then the rename, then the directory', t => {
   atomicWrite(file, '{"_rev":1}', 0o600);
   assert.deepEqual(calls, [['fsync', file + '.tmp'], ['rename', file], ['fsync', dir]]);
   assert.equal(fs.readFileSync(file, 'utf8'), '{"_rev":1}');
-  assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  // Windows chmod does not report POSIX mode bits; the fsync and content assertions still run.
+  if (posixOnly) assert.equal(fs.statSync(file).mode & 0o777, 0o600);
 });
 
 test('server.js and media.js write through it', () => {

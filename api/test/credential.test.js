@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { tempData } from './helpers.mjs';
+import { tempData, posixOnly } from './helpers.mjs';
 
 const dir = tempData();
 const cfg = await import('../coach/config.js');
@@ -99,7 +99,8 @@ test('a profile credential lives in its own file, not in synced state', () => {
   assert.match(file, /coach-auth-alice\.json$/);
   assert.ok(!file.includes('state-'), 'must not ride along in the state blob the client syncs');
 
-  assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  // Windows chmod does not report POSIX mode bits; the file-location assertions still run.
+  if (posixOnly) assert.equal(fs.statSync(file).mode & 0o777, 0o600);
 });
 
 test('a profile id cannot escape the data directory', () => {
