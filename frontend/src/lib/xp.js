@@ -21,13 +21,10 @@
 //   one dayGoals   11-17 ms   before the per-day indexes in lib/water.js, steps.js, sleep.js,
 //   food.js, habits.js; a fraction of a millisecond after, because those readers now look a day
 //   up in an index built in one pass per map instead of re-walking the log.
-//   xpTotals       ~400 ms cold at three years (157 weeks). Still linear-ish but not flat: the
-//   registry's workouts and habits rules scan their whole collection once per week
-//   (Object.values / filter below), so 157 weeks x a few thousand entries is the remaining cost.
-//   Left alone deliberately (decision, Nov 2026): the memo below makes it once per state copy, the
-//   page-level callers share that one walk, and half a second on a personal app is not worth
-//   restructuring the registry. Watering a week's goal count also calls goalProgress twice a day
-//   below - the same trade.
+//   xpTotals       used to scan the workout list and the habit log once per week, so a cold
+//   three-year walk (157 weeks) paid for the whole history 157 times over. The walk now groups
+//   both into week-keyed counts in one pass each; the memo below still makes that one walk per
+//   committed state, and a direct weekXp call keeps its original per-week reads.
 //   /stats/life's month summary was 4.7 s at one year and 44 s at three before the indexes; it is
 //   now a few milliseconds (lib/life-stats.js, and lib/day-cache.test.js holds that contract).
 import { weekKey, weekStartOf, todayISO, isoOf } from './format.js'
@@ -44,21 +41,44 @@ export const XP_POINTS = { session: 20, goalDay: 2, habitCheck: 5 }
 export const XP_WEEK_BONUS_MAX = 20
 
 // The registry, and what each rule costs. The day readers below are index lookups now
-// (lib/water.js, steps.js, sleep.js, food.js), but two rules still scan a whole collection per
-// week: workouts filters S.workouts, and habits walks every check. So one xpTotals call is
-// O(weeks x entries) - about 0.4 s at three years of history, paid once per state copy thanks to
-// the memo further down. Grouping those two by week is the obvious next step and was deliberately
-// left out of this pass; see the header note.
+// (lib/water.js, steps.js, sleep.js, food.js). Workouts and habits used to scan a whole collection
+// per week; the walk hands them a week-keyed count built once, while a direct weekXp call without
+// that count keeps the original scan and the same answer.
 
 const wkOf = (S, iso) => weekKey(iso, weekStartOf(S))
 const addDays = (iso, n) => isoOf(new Date(new Date(iso + 'T12:00:00').getTime() + n * DAY_MS))
 
-/** The registry. Every source: { id, unit, week(S, wk, today) -> { n, xp } }. */
+/**
+ * The two per-week sources as counts by week key, each built in one pass. Pure and short-lived:
+ * the walk owns the result, so nothing derived is stored and no cache can outlive an edit.
+ */
+function weeklyCounts(S) {
+  const workouts = new Map()
+  for (const w of S?.workouts || []) {
+    if (!w || !w.d) continue
+    const k = wkOf(S, w.d)
+    workouts.set(k, (workouts.get(k) || 0) + 1)
+  }
+  const habits = new Map()
+  const map = (S?.habitLogs && typeof S.habitLogs === 'object') ? S.habitLogs : {}
+  for (const e of Object.values(map)) {
+    if (!e || typeof e !== 'object' || e.skip === 1 || typeof e.d !== 'string') continue
+    if (!(Number(e._ts) > 0)) continue
+    const k = wkOf(S, e.d)
+    habits.set(k, (habits.get(k) || 0) + 1)
+  }
+  return { workouts, habits }
+}
+
+/** A count from the walk's index, or null when weekXp was called on its own. */
+const indexedCount = (index, wk) => index ? index.get(wk) || 0 : null
+
+/** The registry. Every source: { id, unit, week(S, wk, today, counts) -> { n, xp } }. */
 export const XP_SOURCES = [
   {
     id: 'workouts', unit: 'sessions', always: true,
-    week(S, wk) {
-      const n = (S?.workouts || []).filter(w => w && w.d && wkOf(S, w.d) === wk).length
+    week(S, wk, today, counts) {
+      const n = indexedCount(counts?.workouts, wk) ?? (S?.workouts || []).filter(w => w && w.d && wkOf(S, w.d) === wk).length
       return { n, xp: n * XP_POINTS.session }
     },
   },
@@ -72,7 +92,9 @@ export const XP_SOURCES = [
   },
   {
     id: 'habits', unit: 'checks',
-    week(S, wk) {
+    week(S, wk, today, counts) {
+      const indexed = indexedCount(counts?.habits, wk)
+      if (indexed !== null) return { n: indexed, xp: indexed * XP_POINTS.habitCheck }
       const map = (S?.habitLogs && typeof S.habitLogs === 'object') ? S.habitLogs : {}
       let n = 0
       for (const e of Object.values(map)) {
@@ -114,12 +136,12 @@ export const XP_SOURCES = [
 ]
 
 /** XP for one week: the sources' points plus the consistency bonus. Returns null for empty weeks. */
-export function weekXp(S, wk, today = todayISO()) {
+export function weekXp(S, wk, today = todayISO(), counts = null) {
   const bySource = {}
   let base = 0
   for (const src of XP_SOURCES) {
     if (!src.always && !isOn(S, src.id)) continue
-    const r = src.week(S, wk, today)
+    const r = src.week(S, wk, today, counts)
     if (!r.n) continue
     bySource[src.id] = { n: r.n, xp: r.xp, unit: src.unit }
     base += r.xp
@@ -168,8 +190,8 @@ function earliestWeek(S) {
  * The walk reads the whole history, so its result is memoised against the state object: the Home
  * level card, /level, /stats/life's summary and its Levels card all ask for the same committed
  * copy in one render, and update() hands out a new object on every write (store/useStore.js), so
- * a cached walk can never be served after an edit. Three walks of three years of logs was worth
- * about a second; one is worth a third of it.
+ * a cached walk can never be served after an edit. The week-keyed counts below are built once per
+ * walk and handed to weekXp, not cached, so an edit cannot leave an old count behind.
  */
 const walkCache = new WeakMap()
 export function xpTotals(S, today = todayISO()) {
@@ -189,9 +211,10 @@ function walkXp(S, today) {
   const weeks = []
   const bySource = {}
   if (first) {
+    const counts = weeklyCounts(S)
     let wk = first
     for (let guard = 0; guard < 1200 && wk <= thisWk; guard++, wk = weekKey(addDays(wk, 7), weekStartOf(S))) {
-      const w = weekXp(S, wk, today)
+      const w = weekXp(S, wk, today, counts)
       if (!w) continue
       weeks.push(w)
       for (const [id, r] of Object.entries(w.bySource)) {

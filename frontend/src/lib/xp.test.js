@@ -90,3 +90,62 @@ describe('a history of only workouts still reads a level', () => {
     expect(x).toMatchObject({ xp: 0, level: 0, weeks: [], bySource: {} })
   })
 })
+
+describe('the week counts are only a faster way to read the same history', () => {
+  it('xpTotals matches a week-by-week walk through the uncached rules', () => {
+    const s = S({
+      modules: { water: true, habits: true },
+      workouts: [session(iso(-27)), null, { d: '' }, session(iso(-2)), session(iso(-2), 9)],
+      water: Object.fromEntries(Array.from({ length: 12 }, (_, i) => ['w' + i, { d: iso(-27 + i * 2), ml: 1000, _ts: i + 1 }])),
+      habitDefs: { h1: { name: 'Read', type: 'yesno', target: 0, schedule: { kind: 'daily' }, createdAt: 0, _ts: 1 } },
+      habitLogs: {
+        a: { h: 'h1', d: iso(-27), _ts: 1 },
+        b: { h: 'h1', d: iso(-27), skip: 1, _ts: 2 },
+        c: { h: 'h1', d: iso(-1), _ts: 3 },
+        d: { h: 'h1', d: iso(-1), _ts: 0 },
+        e: { _ts: 4 },
+        f: { h: 'h1', d: 'bad', _ts: 5 },
+      },
+    })
+    const reference = { weeks: [], bySource: {} }
+    for (let i = 0; i < 5; i++) {
+      const w = weekXp(s, weekKey(iso(-28 + i * 7), 1), T)
+      if (!w) continue
+      reference.weeks.push(w)
+      for (const [id, r] of Object.entries(w.bySource)) {
+        if (!reference.bySource[id]) reference.bySource[id] = { n: 0, xp: 0, unit: r.unit }
+        reference.bySource[id].n += r.n
+        reference.bySource[id].xp += r.xp
+      }
+    }
+    // The fixture has to exercise both grouped sources, or the equality test proves nothing.
+    expect(reference.bySource.workouts.n).toBe(3)
+    expect(reference.bySource.habits.n).toBe(2)
+    const xp = reference.weeks.reduce((sum, w) => sum + w.total, 0)
+    const level = levelFor(xp)
+    expect(xpTotals(s, T)).toEqual({
+      xp, level,
+      into: xp - xpForLevel(level),
+      forNext: xpForLevel(level + 1) - xpForLevel(level),
+      weeks: reference.weeks,
+      bySource: reference.bySource,
+    })
+  })
+
+  it('a 40-week walk reads the habit log a bounded number of times, not once per week', () => {
+    let walks = 0
+    const logs = new Proxy({}, { ownKeys(t) { walks++; return Reflect.ownKeys(t) } })
+    for (let i = 0; i < 40; i++) logs['l' + i] = { h: 'h1', d: iso(-7 * i), _ts: i + 1 }
+    const s = S({
+      modules: { habits: true },
+      habitDefs: { h1: { name: 'Read', type: 'yesno', target: 0, schedule: { kind: 'daily' }, createdAt: 0, _ts: 1 } },
+      habitLogs: logs,
+    })
+    const x = xpTotals(s, T)
+    expect(x.weeks.length).toBeGreaterThan(35)
+    expect(x.bySource.habits.n).toBe(40)
+    // The first log read finds the oldest week, the second builds the counts, the day index
+    // inside the bonus uses the third. A per-week scan would be 40 or more.
+    expect(walks).toBeLessThanOrEqual(3)
+  })
+})
