@@ -1,4 +1,4 @@
-// "Your year in openGym" (v1.4.5): a look back at one calendar year, story by story.
+// "Your year in JelloGym" (v1.4.5): a look back at one calendar year, story by story.
 //
 // This file is the engine and the calendar, nothing more: what the year holds (yearStats), which
 // years can be looked back on (wrappedYears), when the season is on (Dec 1 to Jan 31), whether
@@ -20,6 +20,7 @@ import { MUSCLES, loadOfWorkouts } from './muscles.js'
 import { isoOf, weekKey, weekStartOf, weekOrder } from './format.js'
 import { LB_KG } from './units.js'
 import { isOn } from './modules.js'
+import { lifeOfYear } from './recap.js'
 
 export const SEASON_FROM = [12, 1]   // Dec 1, local
 export const SEASON_TO = [1, 31]     // to the end of Jan 31: the year just gone stays up a while
@@ -252,6 +253,7 @@ export function yearStats(S, year) {
     bestMonth: bestMonth == null ? null : { month: bestMonth, n: months[bestMonth].n, vol: months[bestMonth].vol },
     months: months.map(m => m.n),
     body: bodyChange(S, year),
+    life: lifeOfYear(S, Number(year)),
     shares: { legs: share(LEGS), upper: share(UPPER), cardio: sets ? cardioSets / sets : 0, early: timed ? early / timed : 0, late: timed ? late / timed : 0, weekend: weekend / ws.length },
     first: workoutDay(ws[0]),
   }

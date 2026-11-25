@@ -214,7 +214,7 @@ export function createMediaSync(deps = {}) {
       return running
     }
     running = (async () => {
-      try { await withLock('opengym-media-sync', () => run(opts)) }
+      try { await withLock('jellogym-media-sync', () => run(opts)) }
       catch { /* best effort: the next trigger tries again */ }
       finally {
         running = null
@@ -286,7 +286,7 @@ export function createMediaSync(deps = {}) {
     if (!store) return false
     if (!store.getState().ready) { gcWaiting = true; return false }
     gcWaiting = false
-    await withLock('opengym-media', async () => {
+    await withLock('jellogym-media', async () => {
       const st = store.getState()
       const live = keptHashes(st.S)
       try {

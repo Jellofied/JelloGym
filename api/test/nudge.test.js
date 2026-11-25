@@ -2,9 +2,9 @@
 // in server.js is covered end to end in server-nudge.test.js; the rules themselves are here.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { excusedOn, nudgeFor, nudgeMinute, nudgeWindowOpen, toneOf, lineIndex } from '../nudge.js';
-import { nudgePush } from '../push-messages.js';
-import { NUDGE_COPY } from '../nudge-copy.js';
+import { nudgeFor, nudgeMinute, nudgeWindowOpen, toneOf, lineIndex, waterNudgeFor, waterNudgeWindowOpen, habitNudgeFor, habitNudgeWindowOpen } from '../nudge.js';
+import { nudgePush, waterPush, habitPush } from '../push-messages.js';
+import { NUDGE_COPY, WATER_COPY, HABIT_COPY } from '../nudge-copy.js';
 
 const routines = [{ id: 'push', name: 'Push Day' }, { id: 'pull', name: 'Pull Day' }];
 // 2026-09-07 is a Monday. Push on Mon/Wed/Fri, nothing else.
@@ -61,16 +61,14 @@ test('coach week / rotation: the day right after a workout is rest, the second d
   assert.equal(nudgeFor(s, '2026-09-09'), 'pull', 'two days off in a row');
 });
 
-// #261, the mirror of frontend/src/lib/nudge.test.js: a day with a note on it is excused.
-test('a noted day is excused: not nudged, and not counted towards the back-off', () => {
-  const notes = { '2026-09-07': { tag: 'sick', _ts: 1 } };
-  assert.equal(nudgeFor(S({ workouts: [w('2026-09-04')], dayNotes: notes }), '2026-09-07'), null);
-  assert.equal(nudgeFor(S({ workouts: [w('2026-09-04')], dayNotes: { '2026-09-07': { text: 'Flight to Lisbon', _ts: 1 } } }), '2026-09-07'), null);
-  assert.equal(nudgeFor(S({ workouts: [w('2026-09-04')], dayNotes: { '2026-09-07': { _ts: 2 } } }), '2026-09-07'), 'push', 'a cleared note is no excuse');
+// The mirror of frontend/src/lib/nudge.test.js: a note is just a note.
+test('a noted day is still nudged', () => {
+  const notes = { '2026-09-07': { tag: 'note', _ts: 1 } };
+  assert.equal(nudgeFor(S({ workouts: [w('2026-09-04')], dayNotes: notes }), '2026-09-07'), 'push');
+  assert.equal(nudgeFor(S({ workouts: [w('2026-09-04')], dayNotes: { '2026-09-07': { text: 'Flight to Lisbon', _ts: 1 } } }), '2026-09-07'), 'push');
+  assert.equal(nudgeFor(S({ workouts: [w('2026-09-04')], dayNotes: { '2026-09-07': { _ts: 2 } } }), '2026-09-07'), 'push');
   const s = S({ workouts: [w('2026-09-04')], dayNotes: notes });
-  assert.deepEqual(['2026-09-09', '2026-09-11', '2026-09-14', '2026-09-16'].map(d => !!nudgeFor(s, d)), [true, true, true, false]);
-  assert.equal(excusedOn(S({ dayNotes: { '2026-09-07': { tag: 'nope', text: '  ' } } }), '2026-09-07'), false);
-  assert.equal(excusedOn({ dayNotes: 'x' }, '2026-09-07'), false);
+  assert.deepEqual(['2026-09-07', '2026-09-09', '2026-09-11', '2026-09-14'].map(d => !!nudgeFor(s, d)), [true, true, true, false]);
 });
 
 test('a malformed state reads as nothing to nudge about', () => {
@@ -129,4 +127,91 @@ test('nudge: a crafted state costs one pass, not one per day looked back on', ()
   assert.ok(within(S({ week: {}, queue: { ids: long, since: 1, startsOn: today } })) < 1000);
   // the same, with that session pinned to a later day, so every day falls to the weekday list
   assert.ok(within(S({ queue: { ids: long, since: 1, startsOn: '2026-10-01' }, dayPlan: { '2026-11-01': 'push' }, week: { 0: 'pull', 1: 'pull', 2: 'pull', 3: 'pull', 4: 'pull', 5: 'pull', 6: 'pull' } })) < 1000);
+});
+
+// The behind-on-water nudge (docs/LIFE_MODULES.md 1d), the mirror of the water cases in
+// frontend/src/lib/nudge.test.js: the rule here, the window the server's tick opens on.
+const WD = '2026-09-07';
+const W = (over = {}) => ({ unit: 'kg', bodyweight: [], routines: [], week: {}, dayPlan: {}, workouts: [],
+  modules: { water: true }, waterReminder: { on: true, time: '18:00' }, ...over });
+test('water: which — half the goal short; own goal, weigh-in estimate, or 2000', () => {
+  assert.deepEqual(waterNudgeFor(W({ water: { a1: { d: WD, ml: 250, _ts: 1 } }, waterGoal: 2000 }), WD), { ml: 250, goal: 2000, left: 750 });
+  assert.equal(waterNudgeFor(W({ water: {}, waterGoal: 2000 }), WD).left, 1000);
+  assert.equal(waterNudgeFor(W({ bodyweight: [{ d: WD, w: 80 }] }), WD).goal, 2650);
+  assert.equal(waterNudgeFor(W({ unit: 'lb', bodyweight: [{ d: WD, w: 176 }] }), WD).goal, 2650);
+  assert.equal(waterNudgeFor(W({}), WD).goal, 2000);
+  assert.equal(waterNudgeFor(W({ water: { a1: { d: WD, ml: 1000, _ts: 1 } }, waterGoal: 2000 }), WD), null, 'half drunk is not behind');
+});
+test('water: silent when the module or the reminder is off (default-off module)', () => {
+  assert.equal(waterNudgeFor({ ...W(), modules: { water: false } }, WD), null);
+  assert.equal(waterNudgeFor({ ...W(), waterReminder: { on: false } }, WD), null);
+  assert.equal(waterNudgeFor({ water: {}, waterGoal: 2000, waterReminder: { on: true } }, WD), null, 'absent water module reads default off');
+  assert.equal(waterNudgeFor({ ...W(), modules: { water: true }, week: { 1: 'push' } }, WD).left, 1000, 'other modules never switch water on');
+});
+test('water: counts only the day asked, ignoring tombstones and junk', () => {
+  const st = W({ waterGoal: 2000, water: { a1: { d: '2026-09-06', ml: 1000, _ts: 1 }, b: { _ts: 9 }, c: { d: WD, ml: 0, _ts: 3 } } });
+  assert.equal(waterNudgeFor(st, WD).left, 1000);
+});
+test('water: when — from the check time until 21:30', () => {
+  assert.equal(waterNudgeWindowOpen('18:00', '17:59'), false);
+  assert.equal(waterNudgeWindowOpen('18:00', '18:00'), true);
+  assert.equal(waterNudgeWindowOpen('18:00', '21:30'), true);
+  assert.equal(waterNudgeWindowOpen('18:00', '21:31'), false);
+  assert.equal(waterNudgeWindowOpen(undefined, '18:30'), true, 'no time chosen: 18:00 is the default');
+});
+test('water: push text — one line per date, the shortfall filled in, every language', () => {
+  const i = lineIndex(WD, 4);
+  const p = waterPush('en', { ml: 250, goal: 2000, left: 750 }, WD);
+  assert.equal(p.title, WATER_COPY.en.title);
+  assert.equal(p.body, WATER_COPY.en.lines[i].replace('{0}', '750'));
+  assert.equal(p.tag, 'water-nudge');
+  for (const lang of Object.keys(WATER_COPY)) {
+    for (let d = 0; d < 4; d++) {
+      const x = waterPush(lang, { ml: 0, goal: 2000, left: 1000 }, '2026-09-0' + (d + 1));
+      assert.ok(x.title && x.body && !x.body.includes('{0}'), lang);
+    }
+  }
+  assert.equal(waterPush('xx', { left: 5 }, WD).title, WATER_COPY.en.title, 'unknown language falls back to English');
+});
+
+// The habit reminder digest, the mirror of the habit cases in frontend/src/lib/nudge.test.js.
+const HW = (over = {}) => ({ unit: 'kg', routines: [], week: {}, dayPlan: {}, workouts: [], habitDefs: {}, habitLogs: {},
+  modules: { habits: true }, habitReminder: { on: true, time: '20:00' }, ...over });
+const hdef = (d = {}) => ({ name: 'Read', type: 'timed', target: 20, remind: true, ...d });
+test('habit: names the open habits that opted in', () => {
+  assert.deepEqual(habitNudgeFor(HW({ habitDefs: { h1: hdef() } }), WD), { ids: ['h1'], names: 'Read' });
+  assert.equal(habitNudgeFor(HW(), WD), null);
+  assert.equal(habitNudgeFor(HW({ habitDefs: { h1: { ...hdef(), remind: false } } }), WD), null);
+  assert.equal(habitNudgeFor(HW({ habitDefs: { h1: hdef() }, modules: { habits: false } }), WD), null);
+  assert.equal(habitNudgeFor({ ...HW({ habitDefs: { h1: hdef() } }), habitReminder: { on: false } }, WD), null);
+});
+test('habit: checked, skipped and opted-out days are quiet; two names join, a third folds', () => {
+  const s = HW({ habitDefs: { h1: hdef() }, habitLogs: { x: { h: 'h1', d: WD, sec: 1200, _ts: 1 } } });
+  assert.equal(habitNudgeFor(s, WD), null);
+  const sk = HW({ habitDefs: { h1: hdef() }, habitLogs: { x: { h: 'h1', d: WD, skip: 1, _ts: 1 } } });
+  assert.equal(habitNudgeFor(sk, WD), null);
+  const three = HW({ habitDefs: { h1: hdef(), h2: hdef({ name: 'Meditate' }), h3: hdef({ name: 'Stretch' }) } });
+  assert.equal(habitNudgeFor(three, WD).names, 'Read + Meditate +1');
+});
+test('habit: weekdays schedules nag only their days, skipRest exempts plan rest days', () => {
+  const wd = HW({ routines: [{ id: 'r' }], week: { 1: 'r' }, habitDefs: { h1: hdef({ schedule: { kind: 'weekdays', days: [1] } }) } });
+  assert.ok(habitNudgeFor(wd, '2026-09-07'));
+  assert.equal(habitNudgeFor(wd, '2026-09-08'), null);
+  const rest = HW({ routines: [{ id: 'r' }], week: { 1: 'r' }, habitDefs: { h1: hdef({ skipRest: true }) } });
+  assert.ok(habitNudgeFor(rest, '2026-09-07'));   // Monday trains: due
+  assert.equal(habitNudgeFor(rest, '2026-09-08'), null);   // Tuesday rest: exempt
+});
+test('habit: window and push text', () => {
+  assert.equal(habitNudgeWindowOpen('20:00', '19:59'), false);
+  assert.equal(habitNudgeWindowOpen('20:00', '20:30'), true);
+  assert.equal(habitNudgeWindowOpen('20:00', '21:31'), false);
+  const iso = WD, i = lineIndex(iso, 4);
+  const p = habitPush('en', { names: 'Read' }, iso);
+  assert.equal(p.title, HABIT_COPY.en.title);
+  assert.equal(p.body, HABIT_COPY.en.lines[i].replace('{0}', 'Read'));
+  assert.equal(p.tag, 'habit-nudge');
+  for (const lang of Object.keys(HABIT_COPY)) {
+    const x = habitPush(lang, { names: 'A' }, iso);
+    assert.ok(x.title && x.body && !x.body.includes('{0}'), lang);
+  }
 });

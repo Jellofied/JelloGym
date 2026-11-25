@@ -97,7 +97,7 @@ final class SessionStore: NSObject, ObservableObject, WCSessionDelegate, UNUserN
     @Published private(set) var reachable = true
     @Published private(set) var queued = 0
     /// Whether a snapshot from the phone ever arrived on this watch. The phone sends only while
-    /// openGym runs there, so until then the start screen says to open it once.
+    /// JelloGym runs there, so until then the start screen says to open it once.
     @Published private(set) var heardFromPhone = UserDefaults.standard.bool(forKey: SessionStore.heardKey)
     private static let heardKey = "heardFromPhone"
     @Published private(set) var restEndsAt: Date?
@@ -123,16 +123,16 @@ final class SessionStore: NSObject, ObservableObject, WCSessionDelegate, UNUserN
     /// The rest-over taps again once if nobody reacts to the first ones within a few seconds.
     private var restOverRepeat: DispatchWorkItem?
     private static let stateKey = "sessionState"
-    private static let restNotificationId = "opengym.rest"
+    private static let restNotificationId = "jellogym.rest"
     private static var clipDir: URL {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("clips")
     }
 
-    static let demoArgument = "-OpenGymWatchDemo"
-    /// CI screenshots: "-OpenGymWatchScreen rest" opens the demo on that screen.
-    static var demoScreen: String? { argument("-OpenGymWatchScreen") }
+    static let demoArgument = "-JelloGymWatchDemo"
+    /// CI screenshots: "-JelloGymWatchScreen rest" opens the demo on that screen.
+    static var demoScreen: String? { argument("-JelloGymWatchScreen") }
     /// CI: a synthetic clip (not exercise media) shown on the demo's first exercise.
-    static var demoClip: String? { argument("-OpenGymWatchDemoClip") }
+    static var demoClip: String? { argument("-JelloGymWatchDemoClip") }
     static func argument(_ name: String) -> String? {
         let a = ProcessInfo.processInfo.arguments
         guard let i = a.firstIndex(of: name), i + 1 < a.count else { return nil }
@@ -594,7 +594,7 @@ final class SessionStore: NSObject, ObservableObject, WCSessionDelegate, UNUserN
         summary = nil
     }
 
-    /* ---------- workouts deleted in openGym, out of Apple Health ---------- */
+    /* ---------- workouts deleted in JelloGym, out of Apple Health ---------- */
 
     private static let healthDeletedKey = "healthDeleted"
     private var healthDeleting = false
@@ -605,7 +605,7 @@ final class SessionStore: NSObject, ObservableObject, WCSessionDelegate, UNUserN
         recentWorkouts = Array((recentWorkouts.filter { $0 != wid } + [wid]).suffix(3))
     }
 
-    /// The copies this watch saved of workouts deleted in openGym: taken out once (the ids settled
+    /// The copies this watch saved of workouts deleted in JelloGym: taken out once (the ids settled
     /// are remembered), and the phone told, so it stops retrying what it could not delete itself.
     private func removeDeletedFromHealth(_ gone: [String]?) {
         guard !isDemo, !healthDeleting else { return }
@@ -613,7 +613,7 @@ final class SessionStore: NSObject, ObservableObject, WCSessionDelegate, UNUserN
         let todo = SessionCore.healthToDelete(gone: gone, done: done)
         guard !todo.isEmpty else { return }
         healthDeleting = true
-        let recent = Set(recentWorkouts.map { "opengym-w-\($0)" })
+        let recent = Set(recentWorkouts.map { "jellogym-w-\($0)" })
         health.deleteWorkouts(syncIds: todo, keepTrying: recent) { [weak self] settled in
             guard let self = self else { return }
             self.healthDeleting = false
@@ -1056,10 +1056,10 @@ final class SessionStore: NSObject, ObservableObject, WCSessionDelegate, UNUserN
 
     /* ---------- the demo the CI screenshots show (text only; a synthetic clip at most) ---------- */
 
-    /// CI: the screens at an accessibility text size (OpenGymWatchApp reads it too).
-    static var demoAX: Bool { ProcessInfo.processInfo.arguments.contains("-OpenGymWatchAX") }
+    /// CI: the screens at an accessibility text size (JelloGymWatchApp reads it too).
+    static var demoAX: Bool { ProcessInfo.processInfo.arguments.contains("-JelloGymWatchAX") }
     /// CI: as in Always On (wrist down), for what it costs to keep the screen up to date.
-    static var demoAOD: Bool { ProcessInfo.processInfo.arguments.contains("-OpenGymWatchAOD") }
+    static var demoAOD: Bool { ProcessInfo.processInfo.arguments.contains("-JelloGymWatchAOD") }
 
     /// One screen of the demo workout (demoJSON: every kind of set), as CI photographs it.
     private func startDemo() {
@@ -1079,8 +1079,8 @@ final class SessionStore: NSObject, ObservableObject, WCSessionDelegate, UNUserN
             default: break
             }
             // CI: the watch in another language than its own (the app's, as the phone sends it).
-            if let lang = SessionStore.argument("-OpenGymWatchLang") { self.state.settings.lang = lang }
-            if let show = SessionStore.argument("-OpenGymWatchShow") {
+            if let lang = SessionStore.argument("-JelloGymWatchLang") { self.state.settings.lang = lang }
+            if let show = SessionStore.argument("-JelloGymWatchShow") {
                 // "all": every optional thing on, for a look at the fullest screen.
                 if show == "all" { self.state.settings.show = WatchShow(clip: true, hr: true, last: true, elapsed: true, kcal: true, next: true, rest: "ring") }
                 if show == "plain" { self.state.settings.show = WatchShow(rest: "plain") }

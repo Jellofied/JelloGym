@@ -1,4 +1,4 @@
-// openGym on Garmin: the app, the link to the phone, the heart rate and the Garmin Connect copy.
+// JelloGym on Garmin: the app, the link to the phone, the heart rate and the Garmin Connect copy.
 // docs/GARMIN.md has the whole picture; Core.mc has the session logic.
 import Toybox.Activity;
 import Toybox.ActivityRecording;
@@ -37,7 +37,7 @@ module G {
     }
 }
 
-class OpenGymApp extends Application.AppBase {
+class JelloGymApp extends Application.AppBase {
     private var _timer = null;
 
     function initialize() {
@@ -223,7 +223,7 @@ module Workout {
         }
         try {
             session = ActivityRecording.createSession({
-                :name => Core.strOf(w["name"]).length() > 0 ? Core.strOf(w["name"]) : "openGym",
+                :name => Core.strOf(w["name"]).length() > 0 ? Core.strOf(w["name"]) : "JelloGym",
                 :sport => Activity.SPORT_TRAINING,
                 :subSport => Activity.SUB_SPORT_STRENGTH_TRAINING
             });

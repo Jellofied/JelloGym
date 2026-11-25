@@ -116,7 +116,7 @@ describe('a tapped sticker', () => {
 
   it('opens the running workout instead of starting another', () => {
     m.S.active = { start: 1, cur: 0, entries: [{ id: EX_A }] }
-    handleTagLink('opengym://nfc?do=start', 1000)
+    handleTagLink('jellogym://nfc?do=start', 1000)
     expect(startFlow).not.toHaveBeenCalled()
     expect(m.navs).toEqual(['/workout'])
   })
@@ -163,7 +163,7 @@ describe('a tapped sticker', () => {
   })
 
   it('outside a workout a machine sticker opens the exercise', () => {
-    handleTagLink('opengym://exercise/' + EX_B, 1000)
+    handleTagLink('jellogym://exercise/' + EX_B, 1000)
     expect(exerciseDetailSheet).toHaveBeenCalledWith(EXIDX[EX_B])
   })
 

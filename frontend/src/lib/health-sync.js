@@ -18,7 +18,7 @@
 // no background or history permission is asked for. What it decides is in lib/health-read.js.
 //
 // The web build never gets here (MOBILE is a build-time flag).
-import { mergeHeartRate, mergeWeighIns, lacksHeartRate } from './health-read.js'
+import { mergeHeartRate, mergeWeighIns, lacksHeartRate, mergeSteps, mergeSleep } from './health-read.js'
 import { MOBILE, nativePlatform, readJsonFile, writeJsonFile } from './mobile.js'
 import { healthRecords, planSync, writtenIds, goneIds } from './health-connect.js'
 import { isOn } from './modules.js'
@@ -26,8 +26,12 @@ import { exerciseNameFor } from './i18n-core.js'
 import { EXIDX } from './exercises.js'
 import { speedUnitOf } from './speed.js'
 
-export const HEALTH_FILE = 'opengym-health.json'
-const OFF = { on: false, written: {}, at: 0, error: null, readHr: false, readWeight: false, wHistory: false, wCursor: 0, seen: {}, hrTried: {}, readError: null }
+export const HEALTH_FILE = 'jellogym-health.json'
+// The same file before the app was renamed: a phone that upgrades must not forget what it wrote,
+// which is the only thing that keeps it from writing the whole log into Health Connect a second
+// time under the new record ids.
+export const HEALTH_FILE_OLD = 'opengym-health.json'
+const OFF = { on: false, written: {}, at: 0, error: null, readHr: false, readWeight: false, wHistory: false, wCursor: 0, seen: {}, hrTried: {}, readError: null, writeWater: false, readSteps: false, sCursor: 0, readSleep: false, sleepCursor: 0 }
 
 // Wrapped in an object, as in rest-alert.js: a Capacitor plugin proxy answers `then`, so a
 // promise resolved with the bare proxy never settles.
@@ -50,8 +54,15 @@ async function mirrorOn(on) {
 let cached = null
 export async function loadHealth() {
   if (cached) return cached
-  const f = await readJsonFile(HEALTH_FILE)
   const map = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {})
+  let f = await readJsonFile(HEALTH_FILE)
+  if (!f || typeof f !== 'object') {
+    // Upgrading from the build that named the file after the old app: adopt that copy, under the
+    // new name, once. Without this the phone wakes up having never written anything, and the next
+    // save sends the whole log to Health Connect again beside the records already there.
+    const older = await readJsonFile(HEALTH_FILE_OLD)
+    if (older && typeof older === 'object') { f = older; await writeJsonFile(HEALTH_FILE, older) }
+  }
   cached = f && typeof f === 'object' ? { ...OFF, ...f, written: map(f.written), seen: map(f.seen), hrTried: map(f.hrTried) } : { ...OFF }
   return cached
 }
@@ -85,7 +96,7 @@ export function onHealthChange(cb) { listeners.add(cb); return () => listeners.d
 const told = h => { listeners.forEach(cb => { try { cb(h) } catch { /* a closed screen */ } }) }
 
 /**
- * Writes what changed since the last sync and removes what was deleted from openGym. A no-op
+ * Writes what changed since the last sync and removes what was deleted from JelloGym. A no-op
  * while it is off. Resolves with the file's content afterwards; `error` is 'permission' when
  * Health Connect refused (the user took the permission back), 'unavailable' when it is gone.
  */
@@ -117,8 +128,12 @@ export function syncHealth(S) {
 async function syncOnce(S, h) {
   const p = await plugin()
   if (!p) return h
-  const plan = planSync(healthRecords(S, { nameOf, speedUnit: speedUnitOf(S) }), h.written, goneIds(S))
-  const nothing = !plan.sessions.length && !plan.weights.length && !plan.remove.sessions.length && !plan.remove.weights.length
+  const recs = healthRecords(S, { nameOf, speedUnit: speedUnitOf(S) })
+  // Hydration rides this phone's own grant: no WRITE_HYDRATION asked here yet, no water records.
+  if (!h.writeWater) recs.hydration = []
+  const plan = planSync(recs, h.written, goneIds(S))
+  const nothing = !plan.sessions.length && !plan.weights.length && !plan.hydration.length &&
+    !plan.remove.sessions.length && !plan.remove.weights.length && !plan.remove.hydration.length
   if (nothing) {
     if (!h.error) return h
     // Nothing to write, but the last attempt failed: clear it once Health Connect says yes again.
@@ -131,14 +146,14 @@ async function syncOnce(S, h) {
   }
   let out = { ...h }
   try {
-    if (plan.sessions.length || plan.weights.length) {
-      await p.HC.write({ sessions: plan.sessions, weights: plan.weights })
+    if (plan.sessions.length || plan.weights.length || plan.hydration.length) {
+      await p.HC.write({ sessions: plan.sessions, weights: plan.weights, hydration: plan.hydration })
       // Written but not yet removed: kept as written, so a failed remove is tried again.
       const kept = Object.fromEntries(Object.entries(h.written).filter(([id]) => !plan.written[id]))
       out.written = { ...kept, ...plan.written }
     }
     let written = plan.written
-    if (plan.remove.sessions.length || plan.remove.weights.length) {
+    if (plan.remove.sessions.length || plan.remove.weights.length || plan.remove.hydration.length) {
       // Apple Health answers what it could not take out (`left`: one the watch saved that the
       // phone may not delete): kept as written, so the next sync tries again.
       const res = await p.HC.remove(plan.remove)
@@ -174,7 +189,38 @@ export async function enableHealth(S) {
 }
 
 /**
- * Turning it off stops the writing. With `removeWritten`, what openGym wrote is taken out of
+ * The Water module switched on (Settings → Modules, docs/LIFE_MODULES.md): ask for the hydration
+ * write permission on its own — the batched exercise+weight ask stays as it was — and remember the
+ * grant on this phone. Writes then follow the Health master switch: with it off nothing is sent,
+ * with it back on the water lands in the hub. iOS is out of scope for the life modules.
+ */
+export async function enableWaterWrite(S = null) {
+  const p = await plugin()
+  if (!p || p.platform === 'ios') return { ok: false, reason: 'unsupported' }
+  const st = await p.HC.status().catch(() => ({ status: 'unsupported' }))
+  if (st.status !== 'available') return { ok: false, reason: st.status }
+  const have = st.write?.hydration === true
+  const res = have ? st : await p.HC.requestPermissions({ read: [], write: ['hydration'] }).catch(() => null)
+  if (!(res?.write?.hydration ?? have)) return { ok: false, reason: 'denied' }
+  const h = await loadHealth()
+  const out = { ...h, writeWater: true }
+  await saveHealth(out)
+  told(out)
+  if (h.on) await syncHealth(S)
+  return { ok: true, reason: null, health: cached }
+}
+
+/** Water writes off on this phone: writing stops, what went in stays the user's data. */
+export async function disableWaterWrite() {
+  const h = await loadHealth()
+  const out = { ...h, writeWater: false }
+  await saveHealth(out)
+  told(out)
+  return out
+}
+
+/**
+ * Turning it off stops the writing. With `removeWritten`, what JelloGym wrote is taken out of
  * Health Connect too; without it, it stays there as the user's own data. Rejects when the
  * removal fails, and then stays on, so nothing is left behind that the phone forgot it wrote.
  */
@@ -183,7 +229,7 @@ export async function disableHealth({ removeWritten = false } = {}) {
   const h = await loadHealth()
   if (removeWritten) {
     const ids = writtenIds(h.written)
-    if (ids.sessions.length || ids.weights.length) {
+    if (ids.sessions.length || ids.weights.length || ids.hydration.length) {
       const p = await plugin()
       if (!p) throw new Error('unavailable')
       await p.HC.remove(ids)
@@ -232,7 +278,7 @@ const RESUME_EVERY_MS = 2 * 60e3
 // permission); later ones from the newest seen, minus a margin for a scale that syncs late.
 export const WEIGHT_FIRST_MS = 30 * 24 * 3600e3
 // With Health Connect's history permission (Android, idea from #801) the first read goes back a
-// year instead, so a scale's weigh-ins from before openGym arrive too. Asked for with the weight;
+// year instead, so a scale's weigh-ins from before JelloGym arrive too. Asked for with the weight;
 // refused, the read simply stays at 30 days.
 export const WEIGHT_HISTORY_MS = 365 * 24 * 3600e3
 const WEIGHT_MARGIN_MS = 2 * 24 * 3600e3
@@ -245,6 +291,8 @@ const srcOf = platform => (platform === 'ios' ? 'ah' : 'hc')
 let applyRef = null
 let readRunning = null
 let lastWeightRead = 0
+let lastStepsRead = 0
+let lastSleepRead = 0
 
 /**
  * Turns one of the two reads on (`kind`: 'hr' | 'weight'): asks for that read permission only,
@@ -255,7 +303,7 @@ export async function enableRead(kind, getState, { apply = null } = {}) {
   if (!p) return { ok: false, reason: 'unsupported' }
   const st = await p.HC.status().catch(() => ({ status: 'unsupported' }))
   if (st.status !== 'available') return { ok: false, reason: st.status }
-  const perm = kind === 'hr' ? 'heartRate' : 'weight'
+  const perm = kind === 'hr' ? 'heartRate' : kind === 'weight' ? 'weight' : kind === 'steps' ? 'steps' : 'sleep'
   // The history permission only where Health Connect has it (status says so); Apple Health has none.
   const history = kind === 'weight' && p.platform !== 'ios' && st.history === true
   const res = await p.HC.requestPermissions({ read: history ? [perm, 'history'] : [perm], write: [] }).catch(() => null)
@@ -264,7 +312,8 @@ export async function enableRead(kind, getState, { apply = null } = {}) {
   const ok = res && (res.read ? res.read[perm] !== false : true)
   if (!ok) return { ok: false, reason: 'denied' }
   const h = await loadHealth()
-  const out = { ...h, [kind === 'hr' ? 'readHr' : 'readWeight']: true, readError: null }
+  const key = kind === 'hr' ? 'readHr' : kind === 'weight' ? 'readWeight' : kind === 'steps' ? 'readSteps' : 'readSleep'
+  const out = { ...h, [key]: true, readError: null }
   if (kind === 'weight') out.wHistory = history && res.read?.history === true
   await saveHealth(out)
   told(out)
@@ -276,8 +325,10 @@ export async function enableRead(kind, getState, { apply = null } = {}) {
 export async function disableRead(kind) {
   if (readRunning) await readRunning.catch(() => {})
   const h = await loadHealth()
-  const out = kind === 'hr' ? { ...h, readHr: false, hrTried: {} } : { ...h, readWeight: false }
-  if (!out.readHr && !out.readWeight) out.readError = null
+  const key = kind === 'hr' ? 'readHr' : kind === 'weight' ? 'readWeight' : kind === 'steps' ? 'readSteps' : 'readSleep'
+  const out = { ...h, [key]: false, readError: null }
+  if (kind === 'hr') out.hrTried = {}
+  if (!out.readHr && !out.readWeight && !out.readSteps && !out.readSleep) out.readError = null
   await saveHealth(out)
   told(out)
   return out
@@ -290,7 +341,7 @@ export async function disableRead(kind) {
  * `force`). The log changes only when something new came in.
  */
 export function readHealth(getState, { force = false, now = Date.now(), apply = null } = {}) {
-  if (!MOBILE || !cached || !(cached.readHr || cached.readWeight)) return Promise.resolve(cached)
+  if (!MOBILE || !cached || !(cached.readHr || cached.readWeight || cached.readSteps || cached.readSleep)) return Promise.resolve(cached)
   if (!isOn(getState?.(), 'health')) return Promise.resolve(cached)   // paused with the Health module
   if (readRunning) return readRunning
   readRunning = readOnce(getState, force, now, apply || applyRef).finally(() => { readRunning = null })
@@ -355,6 +406,35 @@ async function readOnce(getState, force, now, applyFn) {
       h.seen = seen
       const newest = records.reduce((m, r) => Math.max(m, Number(r?.t) || 0), 0)
       if (newest > h.wCursor) h.wCursor = newest
+    } catch (e) { fail(e) }
+  }
+
+  // Steps (docs/LIFE_MODULES.md): read-only daily totals, paused while the Steps module is off —
+  // the same pause rule as the Health master toggle above, one level down.
+  if (h.readSteps && isOn(getState?.(), 'steps') && (force ? now - lastStepsRead >= RESUME_EVERY_MS : now - lastStepsRead >= READ_EVERY_MS)) {
+    const since = (h.sCursor || 0) > 0 ? Math.max(h.sCursor - 2 * 86400e3, now - 30 * 86400e3) : now - 30 * 86400e3
+    try {
+      const res = await p.HC.readSteps({ since })
+      lastStepsRead = now
+      const records = Array.isArray(res?.records) ? res.records : []
+      if (records.length) apply(probe => mergeSteps(probe, records, { src }).length > 0,
+        s => { mergeSteps(s, records, { src }) })
+      const newest = records.reduce((m, r) => Math.max(m, Number(r?.t) || 0), 0)
+      if (newest > (h.sCursor || 0)) h.sCursor = newest
+    } catch (e) { fail(e) }
+  }
+
+  // Sleep (docs/LIFE_MODULES.md): sessions read by wake day, paused while the Sleep module is off.
+  if (h.readSleep && isOn(getState?.(), 'sleep') && (force ? now - lastSleepRead >= RESUME_EVERY_MS : now - lastSleepRead >= READ_EVERY_MS)) {
+    const since = (h.sleepCursor || 0) > 0 ? Math.max(h.sleepCursor - 2 * 86400e3, now - 60 * 86400e3) : now - 30 * 86400e3
+    try {
+      const res = await p.HC.readSleeps({ since })
+      lastSleepRead = now
+      const records = Array.isArray(res?.records) ? res.records : []
+      if (records.length) apply(probe => mergeSleep(probe, records, { src }).length > 0,
+        s => { mergeSleep(s, records, { src }) })
+      const newest = records.reduce((m, r) => Math.max(m, Number(r?.e) || 0), 0)
+      if (newest > (h.sleepCursor || 0)) h.sleepCursor = newest
     } catch (e) { fail(e) }
   }
 

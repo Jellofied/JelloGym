@@ -56,7 +56,7 @@ function mount(entries, patch = {}) {
 }
 
 const lines = () => [...container.querySelectorAll('.plateline')].map(el => ({
-  text: el.querySelector('span').textContent,
+  text: el.querySelector('span:not(.icn)').textContent,
   moves: el.querySelector('.moves')?.textContent ?? null,
 }))
 

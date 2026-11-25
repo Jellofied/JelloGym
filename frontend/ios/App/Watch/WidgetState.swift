@@ -25,8 +25,8 @@ struct WidgetState: Codable, Equatable {
     /// The app's language (the phone's), so the complications speak it too.
     var lang: String?
 
-    static let idle = WidgetState(mode: "idle", title: "openGym", detail: "", restEndsAt: nil)
-    static let groupId = "group.ch.opengym.app"
+    static let idle = WidgetState(mode: "idle", title: "JelloGym", detail: "", restEndsAt: nil)
+    static let groupId = "group.ch.jellogym.app"
     private static let key = "widgetState"
 
     static func == (a: WidgetState, b: WidgetState) -> Bool {
@@ -62,9 +62,9 @@ extension WidgetState {
     }
 }
 
-/// openGym's mark, the app icon's barbell (frontend/public/icon-512.png), drawn as one shape so it
+/// JelloGym's mark, the app icon's barbell (frontend/public/icon-512.png), drawn as one shape so it
 /// takes the watch face's tint and stays sharp at every complication size.
-struct OpenGymLogo: Shape {
+struct JelloGymLogo: Shape {
     func path(in rect: CGRect) -> Path {
         // The icon's own coordinates (512 × 512); the barbell spans x 80…432, y 170…342.
         let boxes: [(CGFloat, CGFloat, CGFloat, CGFloat)] = [

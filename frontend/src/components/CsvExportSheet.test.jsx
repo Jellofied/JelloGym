@@ -73,7 +73,7 @@ describe('CsvExportSheet', () => {
     await flush()
     expect(close).toHaveBeenCalled()
     const [text, name] = mocks.share.mock.calls[0]
-    expect(name).toBe('opengym-workouts-' + todayISO() + '.csv')
+    expect(name).toBe('jellogym-workouts-' + todayISO() + '.csv')
     expect(text.trim().split('\r\n')).toHaveLength(3)
     expect(mocks.toast).toHaveBeenCalledWith('CSV exported')
   })
@@ -82,7 +82,20 @@ describe('CsvExportSheet', () => {
     act(() => button('Body weight & measurements (CSV)').click())
     await flush()
     const [text, name] = mocks.share.mock.calls[0]
-    expect(name).toBe('opengym-body-' + todayISO() + '.csv')
+    expect(name).toBe('jellogym-body-' + todayISO() + '.csv')
     expect(text).toContain('weight_kg')
+  })
+
+  it('offers the water file only while the Water module is on, one row per drink', async () => {
+    expect(button('Water (CSV)')).toBeFalsy()   // default-off module: no trace of its export
+    mocks.S = { ...mocks.S, modules: { water: true }, water: { a1: { d: iso(1), ml: 250, _ts: 3 }, a2: { d: iso(1), ml: 500, _ts: 4 }, gone: { _ts: 5 } } }
+    act(() => root.render(<CsvExportSheet close={close} />))
+    expect(count('water')).toBe('2 drinks')
+    act(() => button('Water (CSV)').click())
+    await flush()
+    const [text, name] = mocks.share.mock.calls[0]
+    expect(name).toBe('jellogym-water-' + todayISO() + '.csv')
+    expect(text.trim().split('\r\n').length).toBe(3)   // header + the two live drinks
+    expect(text).toContain('date,ml')
   })
 })

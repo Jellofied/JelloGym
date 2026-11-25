@@ -273,9 +273,3 @@ export function linkKind(url) {
   const host = new URL(u).hostname.toLowerCase()
   return VIDEO_HOSTS.some(d => host === d || host.endsWith('.' + d)) ? 'video' : 'link'
 }
-
-/** m:ss for a length in seconds ("0:07", "1:05"). */
-export function fmtClip(sec) {
-  const s = Math.max(0, Math.round(Number(sec) || 0))
-  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0')
-}

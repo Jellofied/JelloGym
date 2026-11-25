@@ -20,8 +20,8 @@ export const EXIT_WINDOW = 2000
 // What a back press means, given what is on screen. Pure, so the table below is testable.
 export function decideBack({ top, pathname, canGoBack, exitArmed }) {
   if (top) return top.locked ? 'ignore' : 'sheet'   // a locked sheet swallows back on purpose
-  // A root tab must not replay older tabs or abandoned detail pages before it can exit.
-  const atRoot = pathname === '/' || /^\/(home|plan|stats|library)\/?$/i.test(pathname)
+// A root tab must not replay older tabs or abandoned detail pages before it can exit.
+const atRoot = pathname === '/' || /^\/(home|plan|stats|life)\/?$/i.test(pathname)
   if (canGoBack && !atRoot) return 'history'
   return exitArmed ? 'exit' : 'arm-exit'
 }

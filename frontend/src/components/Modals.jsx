@@ -48,6 +48,22 @@ const drainScrollRestore = close => {
 function Sheet({ sheet }) {
   const closeSheet = useUI(s => s.closeSheet)   // not the whole store: an open sheet re-rendered on every rest tick
   const ref = useRef(null)
+  // The dialog container for the three kinds, and the focus handover: focus comes in when the
+  // sheet opens (unless its own content took it first, like the picker search) and goes back to
+  // what held it when the sheet closes.
+  const dialogRef = useRef(null)
+  useEffect(() => {
+    const el = dialogRef.current
+    if (!el) return
+    const prev = document.activeElement
+    if (!el.contains(document.activeElement)) {
+      if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1')
+      el.focus?.()
+    }
+    return () => {
+      if (prev && prev !== document.body && document.contains(prev)) prev.focus?.()
+    }
+  }, [])
   // startY null = no gesture. axis stays null until the finger has travelled far enough to
   // tell a vertical pull from a sideways scroll; 'x' hands the gesture to whatever scrolls
   // horizontally under it (chip strips, heatmap) and the sheet stays put.
@@ -125,21 +141,22 @@ function Sheet({ sheet }) {
   // Full screen, on black: a photo or video opened from a workout (WorkoutMedia.jsx). No
   // backdrop to tap, no drag to dismiss — the viewer has its own close button, and back closes
   // it like any sheet.
-  if (sheet.kind === 'viewer') return <div>{sheet.render(close)}</div>
+  if (sheet.kind === 'viewer') return <div ref={dialogRef} role="dialog" aria-modal="true">{sheet.render(close)}</div>
   if (sheet.kind === 'center') {
     return (
       <div>
         <div className="mback" onClick={() => { if (!sheet.locked) close() }} />
-        <div className={'center' + (sheet.wide ? ' wide' : '')}>{sheet.render(close)}</div>
+        <div className={'center' + (sheet.wide ? ' wide' : '')} ref={dialogRef} role="dialog" aria-modal="true">{sheet.render(close)}</div>
       </div>
     )
   }
   return (
     <div>
       <div className="mback" onClick={() => { if (!sheet.locked) close() }} />
-      <div className="sheet" ref={ref} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
+      <div className="sheet" ref={el => { ref.current = el; dialogRef.current = el }} role="dialog" aria-modal="true"
+        onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
         onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
-        <div className="grab" />
+        <div className="grab" aria-hidden="true" />
         {sheet.render(close)}
       </div>
     </div>
@@ -168,7 +185,7 @@ export default function Modals() {
         // entry over (closeThenNav) or is pushed after it gets its index from it, and Settings'
         // back reads that index to tell whether there is a page to go back to.
         const idx = history.state?.idx
-        history.pushState(typeof idx === 'number' ? { openGymSheet: true, idx: idx + 1 } : { openGymSheet: true }, '')
+        history.pushState(typeof idx === 'number' ? { JelloGymSheet: true, idx: idx + 1 } : { JelloGymSheet: true }, '')
         pushedEntries.current++
       }
     } else if (sheets.length < prev) {

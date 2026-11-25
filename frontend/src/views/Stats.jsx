@@ -45,6 +45,7 @@ import { tappable } from '../lib/use-sheet-keyboard.js'
 import { isWarmupRow } from '../lib/workout-model.js'
 import { exView, exUnitOf, shownWeight } from '../lib/ex-unit.js'
 import { isOn } from '../lib/modules.js'
+import StatsViews from '../components/StatsViews.jsx'
 
 // Set 1 to 5 on the per-set chart — system colours, so each line keeps its hue in dark mode.
 const SET_COLORS = ['var(--blue)', 'var(--green)', 'var(--orange)', 'var(--purple)', 'var(--pink)']
@@ -876,6 +877,10 @@ export default function Stats() {
         <button className="iconbtn" onClick={reportSheet} aria-label={t('Performance report')} title={t('Performance report')}><Icon name="note" /></button>
         <button className="iconbtn" data-tour="stats-history" onClick={() => nav('/history')} aria-label={t('History')}><Icon name="history" /></button>
       </div></div>
+
+    {/* The page in two halves (docs/LIFE_MODULES.md): Training is everything below, Life is
+        /stats/life. The control answers only while a life module is on. */}
+    <StatsViews view="train" />
 
     {/* The page in four parts (redesign 1.4.5, P5), each with its own heading, and a sticky index
         that jumps to them and follows the scroll. It is still one page: every card is where a

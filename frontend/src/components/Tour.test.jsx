@@ -123,13 +123,14 @@ describe('the first-run question', () => {
     expect(tourState()).toBe(null)
     expect(card()).toBe(null)
   })
-  it('also asks how much app this profile wants (Settings → Modules): Everything until a tap, a tap applies it', async () => {
+  it('also asks how much app this profile wants (Settings → Modules): nothing picked until a tap, a tap applies it', async () => {
     useStore.setState(st => ({ S: { ...st.S, modules: undefined } }))
     await act(async () => { openTour({ kind: 'offer' }) })
     await render()
     const radios = [...card().querySelectorAll('[role="radio"]')]
     expect(radios.map(r => r.querySelector('.tour-tut-t').textContent)).toEqual(['Just training', 'Training and body', 'Everything'])
-    expect(radios.map(r => r.getAttribute('aria-checked'))).toEqual(['false', 'false', 'true'])
+    // Water is default-off, so a profile that never chose matches no preset: nothing is checked
+    expect(radios.map(r => r.getAttribute('aria-checked'))).toEqual(['false', 'false', 'false'])
     expect(card().textContent).toContain('Change it anytime in Settings → Modules.')
     await click(radios[0])
     expect(useStore.getState().S.modules.body).toBe(false)

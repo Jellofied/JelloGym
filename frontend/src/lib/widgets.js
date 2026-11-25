@@ -1,7 +1,7 @@
 // The phone app's Home Screen and Lock Screen widgets, the page's side. Native: on the iPhone
 // ios/App/App/WidgetBridgePlugin.swift writes what this builds to the App Group, and the widget
-// extension in ios/App/OpenGymWidgets reads it; on Android WidgetBridgePlugin.java keeps it in
-// SharedPreferences and redraws the widgets (OpenGymWidgetProvider.java).
+// extension in ios/App/JelloGymWidgets reads it; on Android WidgetBridgePlugin.java keeps it in
+// SharedPreferences and redraws the widgets (JelloGymWidgetProvider.java).
 //
 // A widget runs without the app, so the page hands it a small snapshot whenever something it shows
 // changes: the plan for today and the coming week (so the widget can turn the page at midnight on
@@ -34,12 +34,14 @@ import { accentPair, accentValue } from './accent.js'
 import { speedUnitOf } from './speed.js'
 import { isOn } from './modules.js'
 import { viewTarget, exUnitOf, shownWeight } from './ex-unit.js'
+import { cupsOf, goalProgress } from './water.js'
+import { dayFood, foodGoals, recentFoods } from './food.js'
+import { todayList } from './habits.js'
+import { dayNoteOf, dayNoteLine } from './day-notes.js'
 
 export const WIDGET_SNAPSHOT_VERSION = 2
 // What the weight goal's little curve draws: the last weigh-ins.
 export const WIDGET_TREND_POINTS = 7
-// What a configurable widget can show, in the order its menu lists them.
-export const WIDGET_KINDS = ['streak', 'weight', 'week', 'next', 'records', 'volume', 'challenges']
 // Today and the week after it: enough for "next workout" to still be right a few days on.
 export const WIDGET_DAYS = 8
 // What the large widget lists of today's plan.
@@ -106,6 +108,73 @@ function activeOf (S) {
 const round1 = n => Math.round(n * 10) / 10
 // 12400 → "12.4k", 980 → "980": a widget has room for four or five characters.
 const compact = n => (n >= 10000 ? fmtNum(round1(n / 1000)) + 'k' : fmtNum(Math.round(n)))
+
+// The Android Water widget (WaterWidgetProvider.java). Life modules are English only: these words
+// are plain text here, not t(), and the module toggle hides the whole block when it is off.
+const mlText = ml => (ml >= 1000 ? `${(ml / 1000).toFixed(2).replace(/\.?0+$/, '')} L` : `${ml} ml`)
+
+function waterOf (S, today) {
+  if (!isOn(S, 'water')) return null
+  const p = goalProgress(S, today)
+  const ml = Math.max(0, Math.round(p.ml))
+  const goal = Math.max(0, Math.round(p.goal))
+  return {
+    d: today,
+    ml,
+    goal,
+    pct: p.pct,
+    mlText: mlText(ml),
+    line: ml >= goal ? 'Goal reached' : `${goal - ml} ml to go`,
+    cups: cupsOf(S).slice(0, 3),
+  }
+}
+
+function foodOf (S, today) {
+  if (!isOn(S, 'food')) return null
+  const totals = dayFood(S, today), goals = foodGoals(S)
+  const kcal = Math.max(0, Math.round(totals.kcal || 0)), goal = Math.max(1, Math.round(goals.kcal))
+  const protein = Math.max(0, Math.round(totals.protein || 0)), pGoal = Math.max(1, Math.round(goals.protein))
+  const chips = recentFoods(S, 2).filter(f => f.kcal > 0).map(f => ({
+    label: String(f.label || `${f.kcal} kcal`).slice(0, 16),
+    kcal: f.kcal,
+    protein: f.protein || 0,
+  }))
+  return {
+    d: today,
+    kcal,
+    goal,
+    protein,
+    proteinGoal: pGoal,
+    pct: Math.min(1, kcal / goal),
+    kcalText: `${kcal} kcal`,
+    line: kcal >= goal ? 'Calorie goal reached' : `${goal - kcal} kcal to go`,
+    proteinLine: `${protein} / ${pGoal} g protein`,
+    chips,
+  }
+}
+
+function habitsOf (S, today) {
+  if (!isOn(S, 'habits')) return null
+  return todayList(S, today).slice(0, 4).map(x => ({
+    id: x.def.id,
+    name: String(x.def.name || '').slice(0, 20),
+    line: x.def.type === 'timed' ? `${Math.round((x.cur || 0) / 60)} / ${x.target} min` : `${x.cur || 0} / ${x.target}`,
+    done: !!x.done,
+    due: !!x.due,
+    rest: !!x.rest,
+  }))
+}
+
+function noteOf (S, today) {
+  const note = dayNoteOf(S, today)
+  return note ? { tag: note.tag, text: String(note.text || ''), line: dayNoteLine(note) } : null
+}
+
+function glyphOf (st) {
+  const a = activeOf(st)
+  if (!a) return null
+  return { name: a.name, done: a.done, total: a.total, pct: a.total ? a.done / a.total : 0, setLine: `${a.done}/${a.total}` }
+}
 
 function streakOf (S, today) {
   let info
@@ -242,6 +311,13 @@ export function buildWidgetSnapshot (S, { today = todayISO() } = {}) {
     records: recordsOf(st, today),
     volume: volumeOf(st, today),
     challenges: challengesOfWidget(st, today),
+    // Android-only life-module widgets; the iPhone widget extensions ignore these blocks.
+    water: waterOf(st, today),
+    food: foodOf(st, today),
+    habits: habitsOf(st, today),
+    note: noteOf(st, today),
+    // What the Nothing Glyph strips show while a workout runs (foreground service on Android).
+    glyph: glyphOf(st),
     // Points to the next level: not built yet. Stays null until it is; the widgets skip it then.
     level: null,
     labels: {
@@ -263,7 +339,7 @@ export function buildWidgetSnapshot (S, { today = todayISO() } = {}) {
       nothingPlanned: t('Nothing planned'),
       noWeighIn: t('No weigh-ins yet'),
       startNow: t('Start'),
-      // Android's "What to show" screen, in the app's language (OpenGymWidgetConfigure.java).
+      // Android's "What to show" screen, in the app's language (JelloGymWidgetConfigure.java).
       whatToShow: t('What to show'),
       secondThing: t('And beside it'),
       kinds: { streak: t('Week streak'), weight: t('Weight goal'), week: t('This week'), next: t('Next workout'), records: t('Records'), volume: t('Volume'), challenges: t('Challenges') },

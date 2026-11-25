@@ -86,7 +86,7 @@ const cssSource = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
 describe('routine drag handle', () => {
   it('puts a grip on every row, out of the accessibility tree, named for what it does', () => {
     mount([configured('1001'), configured('1002')])
-    expect(rows().map(row => !!row.querySelector('.item [data-drag-handle] svg'))).toEqual([true, true])
+    expect(rows().map(row => !!row.querySelector('.item [data-drag-handle] .icn'))).toEqual([true, true])
     expect(grip(0).getAttribute('aria-hidden')).toBe('true')
     expect(grip(0).getAttribute('title')).toBe('Reorder exercises')
   })

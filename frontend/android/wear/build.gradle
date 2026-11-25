@@ -1,4 +1,4 @@
-// openGym for Wear OS (docs/WEAR_OS.md). The watch follows the workout the phone runs and logs sets
+// JelloGym for Wear OS (docs/WEAR_OS.md). The watch follows the workout the phone runs and logs sets
 // on it; the phone stays the source of truth. It speaks the same JSON as the Apple Watch app
 // (frontend/src/lib/watch-sync.js), carried over the Wearable Data Layer instead of WatchConnectivity.
 //
@@ -15,7 +15,7 @@ apply plugin: 'org.jetbrains.kotlin.plugin.serialization'
 //   versionName  the phone's
 //   versionCode  the phone's + 10000
 // Play keeps one versionCode space per app listing, phone and watch bundles together; the offset
-// keeps the two from ever colliding (the phone is at 30 for 1.4.4), and the watch build of a release
+// keeps the two from ever colliding (the phone is at 31 for 1.4.4), and the watch build of a release
 // is always newer than the watch build of the one before. Docs: docs/WEAR_OS.md "Versions".
 def phoneGradle = rootProject.file('app/build.gradle').text
 def phoneCode = (phoneGradle =~ /versionCode\s+(\d+)/)[0][1] as int
@@ -23,10 +23,10 @@ def phoneName = (phoneGradle =~ /versionName\s+"([^"]+)"/)[0][1]
 ext.WEAR_VERSION_OFFSET = 10000
 
 android {
-    namespace = "ch.duartesantos.opengym.wear"
+    namespace = "ch.duartesantos.jellogym.wear"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "ch.duartesantos.opengym"
+        applicationId "ch.duartesantos.jellogym"
         minSdkVersion rootProject.ext.wearMinSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode phoneCode + WEAR_VERSION_OFFSET
@@ -84,9 +84,11 @@ dependencies {
     implementation "androidx.wear.protolayout:protolayout:$wearProtolayoutVersion"
     implementation "androidx.wear.protolayout:protolayout-expression:$wearProtolayoutVersion"
     implementation "androidx.wear.watchface:watchface-complications-data-source:$wearComplicationsVersion"
-    implementation "com.google.guava:guava:33.4.8-android"
+    implementation "com.google.guava:guava:33.8.0-android"
     // The link to the phone (PhoneLink, WearListener).
     implementation "com.google.android.gms:play-services-wearable:$playServicesWearableVersion"
+    // Coroutines and serialization stay on the line Kotlin 2.2.20 (root build.gradle) can read:
+    // 1.11.0 / 1.13.0 ship a 2.4-series stdlib, and the 2.2 compiler refuses its metadata.
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.10.2"

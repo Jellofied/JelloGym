@@ -38,13 +38,6 @@ export function autoHoldsFor (S, target) {
   return S.autoHolds === true
 }
 
-/** Whether any exercise of the running workout could run its holds by itself. */
-export function autoHoldsAnywhere (S, isTimed) {
-  const A = S && S.active
-  if (!A || !Array.isArray(A.entries)) return false
-  return A.entries.some((e, idx) => isTimed(idx) && autoHoldsFor(S, e && e.target))
-}
-
 /** How long a hold of this row lasts: a plan put aside by a hold that did not finish, else its seconds. */
 export function holdPlanSec (row) {
   if (!row) return DEFAULT_HOLD_SEC

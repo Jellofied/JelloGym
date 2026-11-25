@@ -1,17 +1,17 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "ch.duartesantos.opengym"
+    namespace = "ch.duartesantos.jellogym"
     compileSdk = rootProject.ext.compileSdkVersion
     buildFeatures {
         buildConfig = true
     }
     defaultConfig {
-        applicationId "ch.duartesantos.opengym"
+        applicationId "ch.duartesantos.jellogym"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 31
-        versionName "1.4.4"
+        versionCode 32
+        versionName "1.5.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -36,6 +36,12 @@ android {
             // can live on one device. The name/icon label is overridden by the debug resource
             // overlay in src/debug/res. The release build (the "real" app) is untouched.
             applicationIdSuffix ".test"
+            // The same ABI trim as the release, plus the emulator: 32-bit ARM adds ~8 MB of ML Kit
+            // natives to every test install and no current test phone (or the Wear/emulator rig)
+            // is 32-bit.
+            ndk {
+                abiFilters 'arm64-v8a', 'x86_64'
+            }
         }
     }
     // Where the app is installed from. "sideload" is the APK on GitHub and opengym.ch: it checks
@@ -74,6 +80,10 @@ android {
     sourceSets {
         sideload.java.srcDirs += 'src/gms/java'
         play.java.srcDirs += 'src/gms/java'
+        // Nothing Glyph strips: the real controller and the closed-source SDK in sideload/play,
+        // the no-op controller in fdroid (src/fdroid/java). Same class name, one implementation.
+        sideload.java.srcDirs += 'src/glyph/java'
+        play.java.srcDirs += 'src/glyph/java'
     }
     // Plan B for Google Play's background-location review (docs/APP_STORES.md): with
     // -PplayWithoutBackgroundLocation the Play build leaves out ACCESS_BACKGROUND_LOCATION, so no
@@ -107,6 +117,10 @@ dependencies {
     // else changes. Not in the F-Droid build.
     sideloadImplementation "com.google.android.gms:play-services-wearable:$playServicesWearableVersion"
     playImplementation "com.google.android.gms:play-services-wearable:$playServicesWearableVersion"
+    // The Glyph SDK is Nothing's proprietary AAR. Private sideload and Play builds only; the
+    // F-Droid source set has its own no-op GlyphController and never sees this dependency.
+    sideloadImplementation files('libs/GlyphSDK.aar')
+    playImplementation files('libs/GlyphSDK.aar')
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     // The real org.json for the JVM tests (WidgetContentTest): android.jar only has stubs of it.

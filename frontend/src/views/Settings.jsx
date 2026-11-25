@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, forwardRef, useSyncExternalStore } from 'react'
 import { useNavigate, useParams, useLocation, Navigate } from 'react-router-dom'
 import { useStore, DEF, hasData } from '../store/useStore.js'
-import { healthStatus, loadHealth, enableHealth, disableHealth, openHealthConnect, onHealthChange, enableRead, disableRead } from '../lib/health-sync.js'
+import { healthStatus, loadHealth, enableHealth, disableHealth, openHealthConnect, onHealthChange, enableRead, disableRead, enableWaterWrite, disableWaterWrite } from '../lib/health-sync.js'
 import { phoneSessionSupported } from '../lib/phone-workout.js'
 import { workoutControls } from '../lib/workout-controls.js'
 import { speedUnitOf } from '../lib/speed.js'
@@ -10,7 +10,7 @@ import { copyText } from '../lib/clipboard.js'
 import { useUI } from '../store/useUI.js'
 import { activeGym, gymLabel, switchGym } from '../lib/gym-inventory.js'
 import { startTour, TUTORIALS, TUTORIAL_COPY, tutorialDone } from '../lib/tour.js'
-import { ACCENTS, ACCENT_NAMES, todayISO, localTZ, weekStartOf, MONDAY, SUNDAY, fmtPlate } from '../lib/format.js'
+import { ACCENTS, ACCENT_NAMES, todayISO, localTZ, weekStartOf, MONDAY, SUNDAY, fmtPlate, fmtAgo } from '../lib/format.js'
 import { inventoryFor, ownsPlates } from '../lib/plates.js'
 import { BAR_TYPES, ownBarDefault } from '../lib/bar.js'
 import { dumbbellsOf, ownsNoDumbbells } from '../lib/dumbbells.js'
@@ -32,7 +32,7 @@ import { t, tn, LANGS, INSTR_LANGS, EXERCISE_NAME_LANGS, baseLang, dateLocale } 
 import { effectiveLang } from '../lib/default-lang.js'
 import { DEMO, REPO } from '../lib/demo.js'
 import { MOBILE, isAndroid, shareExport, shareExportBlob, syncReminder } from '../lib/mobile.js'
-import { NUDGE_COPY, NUDGE_TONES, toneOf } from '../lib/nudge.js'
+import { NUDGE_COPY, NUDGE_TONES, WATER_DEFAULT_TIME, toneOf } from '../lib/nudge.js'
 import { referencedFiles } from '../lib/media-refs.js'
 import { mediaStore } from '../lib/media-store.js'
 import { syncMedia, fetchToStore } from '../lib/media-sync.js'
@@ -59,7 +59,13 @@ import { passwordOn, PasswordRow, openPasswordSignIn, openPasswordRegister } fro
 import { usePasskeys, PasskeysRow, DeviceLinkRow, openDeviceLinkRedeem, PairSheet } from '../components/Passkeys.jsx'
 import { DeleteAccountRow } from '../components/DeleteAccount.jsx'
 import { warmupAutoOf } from '../lib/warmup-ramp.js'
-import { Section, Row, SelectRow, Switch, Segmented, Button, TextField, SearchField } from '../components/ui.jsx'
+import { cupsOf, goalOf } from '../lib/water.js'
+import { editHabit, habitsOf } from '../lib/habits.js'
+import { originName, stepsGoalOf, stepOrigins } from '../lib/steps.js'
+import { foodGoals } from '../lib/food.js'
+import { sleepGoalOf } from '../lib/sleep.js'
+import { waterGoalSheet, waterCupsSheet } from '../components/WaterSheets.jsx'
+import { Section, Row, SelectRow, Switch, Segmented, Stepper, Button, TextField, SearchField } from '../components/ui.jsx'
 import { POLICIES_FOR, POLICY_NAME, POLICY_DESC, profileRule } from '../lib/progression.js'
 import { PAGES, ROOT_GROUPS, pageVisible, searchSettings, pageTrail } from './settings-pages.js'
 import { platformNow } from '../lib/platform-now.js'
@@ -323,7 +329,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
   // and the copy it exports is the one that has not reached the server.
   const doExport = async () => {
     const json = JSON.stringify(useStore.getState().S, null, 2)
-    const name = 'opengym-backup-' + todayISO() + '.json'
+    const name = 'jellogym-backup-' + todayISO() + '.json'
     // WKWebView can't download blob URLs — the native build hands the file to the share sheet.
     if (MOBILE) {
       try { await shareExport(json, name); toast(t('Backup exported')) } catch (e) { /* share sheet dismissed */ }
@@ -343,7 +349,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
     let out
     try { out = await exportBackupZip(st.S, { fetchOne: signedIn ? fetchToStore : null }) }
     catch { toast(t('Something went wrong')); return }
-    const name = 'opengym-backup-' + todayISO() + '.zip'
+    const name = 'jellogym-backup-' + todayISO() + '.zip'
     if (out.missing) toast(tn('{0} file could not be included', '{0} files could not be included', out.missing))
     if (MOBILE) {
       try { await shareExportBlob(out.blob, name); if (!out.missing) toast(t('Backup exported')) } catch (e) { /* share sheet dismissed */ }
@@ -466,6 +472,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
     sound: !!S.sound, playOnSilent: playOnSilentSupported(), canVibrate, vibrate: S.vibrate !== false,
     profiles: (S.equipProfiles || []).length > 0, nameLang: EXERCISE_NAME_LANGS.includes(baseLang(lang)),
     pushOK: !MOBILE && pushSupported(), reminderOn: !!S.reminder?.on, nudge: !!S.reminder?.nudge,
+    waterOn: isOn(S, 'water'), habitsOn: isOn(S, 'habits'),
     nfc: nfcOK, gymReminder,
     autoBackup: !!S.autoBackup, synced: !!sync, installTip: !MOBILE && !standalone(), androidWeb: IS_ANDROID, desktopWeb: !IS_ANDROID && !APPLE_UA,
     integrations: config?.integrations?.providers || [],
@@ -625,11 +632,13 @@ export default function Settings({ page = null, find = null, via = null, entryKe
       </Section>
       <Section title={t('Before and during')}>
         {/* The quick weigh-in that opens on Start (sheets.jsx startFlow, issue #137); off skips
-            straight to the session. Home and Stats still log weight by hand. */}
-        {on('body') && <Row icon="scale" iconTint="var(--green)" title={t('Weigh in before workouts')}
+            straight to the session. Home and Stats still log weight by hand. The row stays in
+            Settings whatever the Body module does, because it decides what Start asks for: hiding
+            it with the module left the switch unreachable and nobody could turn the step back on. */}
+        <Row icon="scale" iconTint="var(--green)" title={t('Weigh in before workouts')}
           subtitle={t('Asks for your body weight when a workout starts. Off starts the session straight away.')}>
           <Switch checked={S.weighIn !== false} onChange={v => update(s => { s.weighIn = v })} />
-        </Row>}
+        </Row>
         {(wakeOK || !MOBILE) && (
           <Row icon="phoneScreen" iconTint="var(--yellow)" title={t('Keep screen awake')}
             subtitle={wakeOK ? t('The screen stays on while a workout is running, so you don’t have to unlock your phone between sets.') : t('Not supported in this browser.')}>
@@ -763,7 +772,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
         {/* The buzz at the end of a rest or a hold and on a set tick, on its own switch like the
             sound (Discord, asierlama). iOS has no navigator.vibrate: the row stays, greyed out,
             and says so, instead of an iPhone user looking for a setting that is not there. */}
-        <Section footer={!canVibrate && iPhone ? t('iPhone doesn’t let openGym vibrate. A sound or a flash does the job.') : null}>
+        <Section footer={!canVibrate && iPhone ? t('iPhone doesn’t let JelloGym vibrate. A sound or a flash does the job.') : null}>
           <Row icon="vibrate" iconTint="var(--indigo)" title={t('Vibrate')} className={canVibrate ? '' : 'dis'}
             subtitle={canVibrate ? null : iPhone ? t('Not on iPhone') : t('Not supported in this browser.')}>
             <Switch checked={canVibrate && S.vibrate !== false} disabled={!canVibrate} onChange={v => update(s => { s.vibrate = v })} />
@@ -807,9 +816,68 @@ export default function Settings({ page = null, find = null, via = null, entryKe
 
     reminders: () => <>
       <NotificationsCard S={S} update={update} toast={toast} />
+      {isOn(S, 'water') && <Section footer={t('A nudge when the day’s water is running short.')}>
+        <Row icon="drop" iconTint="var(--blue)" title={t('Water reminder')} value={S.waterReminder?.on ? t('On') : t('Off')} accessory="chevron" onClick={() => nav('/settings/reminders-water')} />
+      </Section>}
+      {isOn(S, 'habits') && <Section footer={t('A digest of the habits still open at the end of the day.')}>
+        <Row icon="checkCircle" iconTint="var(--teal)" title={t('Habit reminders')} value={S.habitReminder?.on ? t('On') : t('Off')} accessory="chevron" onClick={() => nav('/settings/reminders-habits')} />
+      </Section>}
       {MOBILE && gymReminder && <Section footer={t('A nudge when you walk into your gym.')}>
         <Row icon="mapPin" iconTint="var(--green)" title={t('Gym reminder')} value={gymOn ? t('On') : t('Off')} accessory="chevron" onClick={() => nav('/settings/gym')} />
       </Section>}
+    </>,
+
+    'reminders-water': () => <WaterReminderPage />,
+
+    'reminders-habits': () => <>
+      <Section footer={t('One digest a day, from this time until 21:30, naming the habits that opted in and are still open. The web needs push notifications; the phone app tells you on its own.')}>
+        <Row icon="checkCircle" iconTint="var(--teal)" title={t('Habit reminders')}>
+          <Switch aria-label={t('Habit reminders')} checked={!!S.habitReminder?.on} onChange={v => {
+            update(s => { s.habitReminder = { on: v, time: s.habitReminder?.time || '20:00', tz: localTZ() } })
+            if (MOBILE) syncReminder({ ...useStore.getState().S }, true).catch(() => {})
+          }} />
+        </Row>
+        {!!S.habitReminder?.on && <Row icon="clock" iconTint="var(--purple)" title={t('Reminder time')}>
+          <input type="time" className="timef" value={S.habitReminder?.time || '20:00'}
+            onChange={e => update(s => { s.habitReminder = { ...(s.habitReminder || { on: true }), time: e.target.value, tz: localTZ() } })} />
+        </Row>}
+      </Section>
+    </>,
+
+    habits: () => <>
+      <Section footer={t('Reminders name the habits still open at the check time. Set the time with the other reminders.')}>
+        {habitsOf(S).map(h => <Row key={h.id} icon="checkCircle" iconTint="var(--teal)" title={h.name}>
+          <Switch aria-label={'Remind me: ' + h.name} checked={!!h.remind} onChange={v => update(s => { editHabit(s, h.id, { remind: v }) })} />
+        </Row>)}
+        {!habitsOf(S).length && <div className="muted small">No habits yet. Make one on Home first.</div>}
+      </Section>
+    </>,
+
+    'health-goals': () => <>
+      <Section footer={t('The rings for the data that arrives by itself. Steps and sleep come in from Health Connect; there is nothing to log.')}>
+        {on('steps') && <Row icon="steps" iconTint="var(--orange)" title={t('Step goal')}>
+          <Stepper value={stepsGoalOf(S)} step={500} min={2000} max={50000} decimal={false} unit={t('steps')}
+            onChange={v => update(s => { s.stepsGoal = v })} aria-label={t('Step goal')} />
+        </Row>}
+        {on('sleep') && <Row icon="moon" iconTint="var(--indigo)" title={t('Sleep goal')}>
+          <Stepper value={sleepGoalOf(S)} step={15} min={240} max={720} decimal={false} unit={t('min')}
+            onChange={v => update(s => { s.sleepGoal = v })} aria-label={t('Sleep goal')} />
+        </Row>}
+      </Section>
+    </>,
+
+    food: () => <>
+      <Section footer={t('Without your own numbers the goals start from about 33 kcal and 1.6 g of protein per kg of your latest weigh-in. A starting suggestion, nothing more.')}>
+        <Row icon="target" iconTint="var(--green)" title={t('Calorie goal')}>
+          <Stepper value={foodGoals(S).kcal} step={50} min={800} max={20000} decimal={false} unit={t('kcal')}
+            onChange={v => update(s => { s.foodGoalKcal = v })} aria-label={t('Calorie goal')} />
+        </Row>
+        <Row icon="chartLine" iconTint="var(--green)" title={t('Protein goal')}>
+          <Stepper value={foodGoals(S).protein} step={5} min={20} max={1000} decimal={false} unit={t('g')}
+            onChange={v => update(s => { s.foodGoalProtein = v })} aria-label={t('Protein goal')} />
+        </Row>
+        <Row icon="list" iconTint="var(--green)" title={t('Saved foods')} accessory="chevron" onClick={() => nav('/food/saved')} />
+      </Section>
     </>,
 
     plan: () => <>
@@ -934,6 +1002,13 @@ export default function Settings({ page = null, find = null, via = null, entryKe
             { value: 'avg', label: t('Average'), subtitle: t('Every weigh-in of the day counts the same.') },
             { value: 'last', label: t('Last'), subtitle: t('The most recent one of the day.') },
           ]} />}
+      </Section>
+    </>,
+
+    water: () => <>
+      <Section footer={t('A drink lands on its own day, and two devices each logging one keep both.')}>
+        <Row icon="target" iconTint="var(--blue)" title={t('Daily goal')} value={goalOf(S) + ' ml'} accessory="chevron" onClick={waterGoalSheet} />
+        <Row icon="drop" iconTint="var(--blue)" title={t('Cup sizes')} value={cupsOf(S).map(c => c + ' ml').join(' · ')} accessory="chevron" onClick={waterCupsSheet} />
       </Section>
     </>,
 
@@ -1121,7 +1196,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
           subtitle={MOBILE && selfUpdate ? t('{0} APK, animations at {1} px', VARIANT_NAMES[APK_VARIANT], BUILTIN_PX) : undefined} />
         {MOBILE
           ? selfUpdate && <Row icon="download" iconTint="var(--green)"
-              title={updateInfo?.hasUpdate ? t('Update to openGym v{0}', updateInfo.latestVersion) : t('Check for updates')}
+              title={updateInfo?.hasUpdate ? t('Update to JelloGym v{0}', updateInfo.latestVersion) : t('Check for updates')}
               subtitle={checking ? t('Checking…') : t('You have v{0}', __APP_VERSION__)}
               accessory="chevron"
               onClick={() => (updateInfo?.hasUpdate ? onUpdateRowClick() : checkNow())} />
@@ -1152,10 +1227,10 @@ export default function Settings({ page = null, find = null, via = null, entryKe
           shows only its rating link: Play's payments policy wants Play billing for anything paid
           inside an app, donations to a project that isn't a registered charity included, so the
           coffee links stay on the APK, the iPhone and the web (docs/APP_STORES.md). */}
-      <Section title={t('Support openGym')} footer={play ? undefined : t('openGym is free: no ads, no subscriptions, no tracking. A coffee keeps it that way.')}>
-        {MOBILE && ios && <Row icon="star" iconTint="var(--orange)" title={t('Rate openGym on the App Store')} accessory="chevron"
+      <Section title={t('Support JelloGym')} footer={play ? undefined : t('JelloGym is free: no ads, no subscriptions, no tracking. A coffee keeps it that way.')}>
+        {MOBILE && ios && <Row icon="star" iconTint="var(--orange)" title={t('Rate JelloGym on the App Store')} accessory="chevron"
           onClick={() => window.open('https://apps.apple.com/app/id6822275400?action=write-review', '_blank', 'noopener')} />}
-        {play && <Row icon="star" iconTint="var(--orange)" title={t('Rate openGym on Google Play')} accessory="chevron"
+        {play && <Row icon="star" iconTint="var(--orange)" title={t('Rate JelloGym on Google Play')} accessory="chevron"
           onClick={() => window.open('https://play.google.com/store/apps/details?id=ch.duartesantos.opengym', '_blank', 'noopener')} />}
         {!play && <>
           <Row icon="heart" iconTint="var(--pink)" title={t('Buy me a coffee')} subtitle="Buy Me a Coffee" accessory="chevron"
@@ -1172,17 +1247,17 @@ export default function Settings({ page = null, find = null, via = null, entryKe
       {!MOBILE && !standalone() && <Section title={t('Tip')}>
         <Row icon="share" iconTint="var(--blue)"
           title={IS_ANDROID ? t('In Chrome: ⋮ menu → Add to Home screen') : APPLE_UA ? t('In Safari: Share → Add to Home Screen') : t('In Chrome or Edge: the install icon in the address bar')}
-          subtitle={t('to install openGym as a full-screen app.') + ' ' + (user ? t('Your data syncs with your profile. Sign in anywhere and it’s there.') : t('Guest data stays on this device, so export a backup now and then!'))} />
+          subtitle={t('to install JelloGym as a full-screen app.') + ' ' + (user ? t('Your data syncs with your profile. Sign in anywhere and it’s there.') : t('Guest data stays on this device, so export a backup now and then!'))} />
       </Section>}
       {/* The version, where the support template tells people to look for it. On the phone
           build there is no address bar and no about box, so without this there is no way to tell
           which build you are running, or whether an update actually installed. */}
       <div className="dim small sp-version">
-        openGym v{__APP_VERSION__} · {t('free & open source (AGPL v3)')}<br />
+        JelloGym v{__APP_VERSION__} · {t('free & open source (AGPL v3)')}<br />
         <a href="https://github.com/DuarteSantos8/openGym" target="_blank" rel="noopener">{t('Source code')}</a><br />
         {/* Attribution the media licence asks for word for word (agreement §8c), so it is not translated */}
         Exercise media © Aliaksandr Makatserchyk, <a href="https://gymvisual.com/" target="_blank" rel="noopener">Gym visual</a>, gymvisual.com.
-        Media licensed for use in openGym only; see <a href="https://github.com/DuarteSantos8/openGym/blob/main/NOTICE.md" target="_blank" rel="noopener">NOTICE.md</a>
+        Media licensed for use in JelloGym only; see <a href="https://github.com/DuarteSantos8/openGym/blob/main/NOTICE.md" target="_blank" rel="noopener">NOTICE.md</a>
       </div>
     </>,
 
@@ -1205,20 +1280,20 @@ export default function Settings({ page = null, find = null, via = null, entryKe
         footer={MOBILE ? t('Signing in on your computer too needs your own server. Connect this phone to it, and Add another device then gives the computer a code.') : null}>
         {MOBILE ? <>
           <Row icon="lock" iconTint="var(--acc)" title={t('All data stays on this phone')} subtitle={t('No account, no cloud. Back it up anytime in Data & backup.')} />
-          <Row icon="cloud" iconTint="var(--indigo)" title={t('Connect to my server')} subtitle={t('Sync this device to your own self-hosted openGym instead.')} accessory="chevron"
+          <Row icon="cloud" iconTint="var(--indigo)" title={t('Connect to my server')} subtitle={t('Sync this device to your own self-hosted JelloGym instead.')} accessory="chevron"
             onClick={connectServer} />
           <KeptChangesRows />
         </> : DEMO ? <>
           <Row icon="info" iconTint="var(--acc)" title={t('You’re in the demo')} subtitle={t('Example data, stored only in this browser. Go wild and change anything you like.')} />
           <Row icon="reset" iconTint="var(--blue)" title={t('Reset demo data')} accessory="chevron"
             onClick={() => confirmSheet({ title: t('Reset demo data?'), message: t('Puts the example plan, workouts and weigh-ins back the way they started.'), confirmText: t('Reset'), onConfirm: () => { resetDemo(); nav('/home'); toast(t('Demo data reset')) } })} />
-          <Row icon="rocket" iconTint="var(--indigo)" title={t('Self-host openGym')} subtitle={t('Passkey sign-in, sync across your devices, your own data.')} accessory="chevron"
+          <Row icon="rocket" iconTint="var(--indigo)" title={t('Self-host JelloGym')} subtitle={t('Passkey sign-in, sync across your devices, your own data.')} accessory="chevron"
             onClick={() => window.open(REPO, '_blank', 'noopener')} />
         </> : user ? <>
           {user.admin && <Row icon="crown" iconTint="var(--indigo)" title={t('Admin dashboard')} accessory="chevron" onClick={() => nav('/admin')} />}
           <PasskeysRow state={passkeys.st} changed={credsChanged} />
           <DeviceLinkRow state={passkeys.st} />
-          <Row icon="qr" iconTint="var(--blue)" title={t('Pair the mobile app')} subtitle={t('Connect the openGym app on your phone to this account.')} accessory="chevron"
+          <Row icon="qr" iconTint="var(--blue)" title={t('Pair the mobile app')} subtitle={t('Connect the JelloGym app on your phone to this account.')} accessory="chevron"
             onClick={() => useUI.getState().openSheet(close => <PairSheet close={close} />)} />
           {pwOn && <PasswordRow version={credsV} />}
           <Row icon="signOut" iconTint="var(--red)" title={t('Sign out')} danger onClick={signOutHere} />
@@ -1330,7 +1405,7 @@ function SettingsRoot({ ctx, preview, open, user, sync, home, go, entryKey }) {
             value={t('Admin')} accessory="chevron" onClick={() => nav('/admin', { state: { section: 'coach' } })} className="sp-root-row" />}
         </Section>
       ))}
-      <div className="dim small sp-version">openGym v{__APP_VERSION__}</div>
+      <div className="dim small sp-version">JelloGym v{__APP_VERSION__}</div>
     </>}
   </div>
 }
@@ -1470,14 +1545,14 @@ function MobileReminderCard({ S, update, toast }) {
   )
 }
 
-// Your year in openGym (lib/wrapped.js): one notification on Dec 1, on unless switched off here.
+// Your year in JelloGym (lib/wrapped.js): one notification on Dec 1, on unless switched off here.
 // The phone plans it itself; a server sends it as a web push. Off takes back a planned one.
 function WrappedNotifyRow({ S, update }) {
   // Part of the Motivation module (Settings → Modules): with it off there is nothing to notify.
   if (!isOn(S, 'motivation')) return null
   const on = S.wrappedNotify !== false
-  return <Row icon="sparkles" iconTint="var(--acc)" title={t('Your year in openGym')} subtitle={t('One notification on 1 December when your year is ready.')}>
-    <Switch checked={on} onChange={() => update(s => { s.wrappedNotify = !on })} aria-label={t('Your year in openGym')} />
+  return <Row icon="sparkles" iconTint="var(--acc)" title={t('Your year in JelloGym')} subtitle={t('One notification on 1 December when your year is ready.')}>
+    <Switch checked={on} onChange={() => update(s => { s.wrappedNotify = !on })} aria-label={t('Your year in JelloGym')} />
   </Row>
 }
 
@@ -1551,7 +1626,7 @@ function PushCard({ S, update, toast }) {
           nudgeNote(S)
         : null}
     >
-      <Row icon="bell" iconTint="var(--red)" title={t('Push notifications')} subtitle={t('Rest-timer alerts, even if openGym is closed.')}>
+      <Row icon="bell" iconTint="var(--red)" title={t('Push notifications')} subtitle={t('Rest-timer alerts, even if JelloGym is closed.')}>
         <Switch checked={on} disabled={busy} onChange={toggle} />
       </Row>
       {on && (
@@ -1846,24 +1921,24 @@ const HEALTH_COPY = {
     footer: t('Workouts and weigh-ins go to Health Connect when you finish or change them.'),
     on: t('Writing to Health Connect'), denied: t('Health Connect permission not granted'), failed: t('Could not write to Health Connect'),
     removeFailed: t('Could not remove it from Health Connect'), stop: t('Stop writing to Health Connect?'),
-    stopSub: t('What openGym already wrote can stay in Health Connect as your data, or be removed from it.'),
+    stopSub: t('What JelloGym already wrote can stay in Health Connect as your data, or be removed from it.'),
   }),
   ios: () => ({
     section: t('Apple Health'), write: t('Write to Apple Health'), open: t('Open Apple Health'),
     footer: t('Workouts and weigh-ins go to Apple Health when you finish or change them.'),
     on: t('Writing to Apple Health'), denied: t('Apple Health permission not granted'), failed: t('Could not write to Apple Health'),
     removeFailed: t('Could not remove it from Apple Health'), stop: t('Stop writing to Apple Health?'),
-    stopSub: t('What openGym already wrote can stay in Apple Health as your data, or be removed from it.'),
+    stopSub: t('What JelloGym already wrote can stay in Apple Health as your data, or be removed from it.'),
   }),
 }
 
 // Settings → Integrations → Apple Health / Health Connect. On a phone without the store, a line
 // that says so instead of an empty page.
 function HealthPage({ S, toast, android }) {
-  if (!MOBILE) return <Section><Row icon="info" iconTint="var(--grey)" title={t('This lives in the openGym phone app.')} /></Section>
+  if (!MOBILE) return <Section><Row icon="info" iconTint="var(--grey)" title={t('This lives in the JelloGym phone app.')} /></Section>
   return <>
     <HealthConnectCard S={S} toast={toast} android={android} page />
-    <p className="sect-f">{t('Your watch or scale writes here too? Garmin, COROS, Fitbit, Withings, Oura and friends reach openGym this way.')}</p>
+    <p className="sect-f">{t('Your watch or scale writes here too? Garmin, COROS, Fitbit, Withings, Oura and friends reach JelloGym this way.')}</p>
   </>
 }
 
@@ -1877,6 +1952,37 @@ function HealthLinkRow({ android, nav }) {
     <Row icon="heart" iconTint="var(--red)" title={ios ? t('Apple Health') : t('Health Connect')} subtitle={t('Now in Integrations')} accessory="chevron"
       onClick={() => nav('/settings/' + (ios ? 'apple-health' : 'health-connect'))} />
   </Section>
+}
+
+// The water reminder (docs/LIFE_MODULES.md 1d): one check a day, from the chosen time until
+// 21:30, when the day's drinks are still under half the goal. The rule lives in lib/nudge.js
+// (its api twin sends the push); switching here also rebuilds the phone's notification list.
+function WaterReminderPage() {
+  const nav = useNavigate()
+  const S = useStore(s => s.S)
+  const update = useStore(s => s.update)
+  const set = async patch => {
+    const next = { on: false, time: WATER_DEFAULT_TIME, ...(S.waterReminder || {}), ...patch, tz: localTZ() }
+    update(s => { s.waterReminder = next })
+    if (MOBILE) await syncReminder({ ...useStore.getState().S }, true).catch(() => {})
+  }
+  return <div className="narrow">
+    <div className="sp-nav">
+      <button className="sp-back" data-back="/settings/reminders" onClick={() => nav('/settings/reminders')}>
+        <Icon name="chevronLeft" /><span>{t(PAGES.reminders.title)}</span>
+      </button>
+      <h1 className="sp-title">{t(PAGES['reminders-water'].title)}</h1>
+    </div>
+    <Section footer={t('Fires from this time until 21:30, once a day, while today is under half your water goal. The web needs push notifications; the phone app tells you on its own.')}>
+      <Row icon="drop" iconTint="var(--blue)" title={t('Water reminder')}>
+        <Switch aria-label={t('Water reminder')} checked={!!S.waterReminder?.on} onChange={v => { set({ on: v }) }} />
+      </Row>
+      {!!S.waterReminder?.on && <Row icon="clock" iconTint="var(--purple)" title={t('Check time')}>
+        <input type="time" className="timef" value={S.waterReminder?.time || WATER_DEFAULT_TIME}
+          onChange={e => { set({ time: e.target.value }) }} />
+      </Row>}
+    </Section>
+  </div>
 }
 
 function HealthConnectCard({ S, toast, android, page = false }) {
@@ -1896,7 +2002,7 @@ function HealthConnectCard({ S, toast, android, page = false }) {
   const ios = st?.platform === 'ios'
   if (!st || !h) return null
   if (st.status === 'unsupported' || (!android && !ios)) {
-    return page ? <Section><Row icon="info" iconTint="var(--grey)" title={t('Not on this phone')} subtitle={t('This phone has no health store openGym can use.')} /></Section> : null
+    return page ? <Section><Row icon="info" iconTint="var(--grey)" title={t('Not on this phone')} subtitle={t('This phone has no health store JelloGym can use.')} /></Section> : null
   }
   const c = HEALTH_COPY[ios ? 'ios' : 'android']()
 
@@ -1954,13 +2060,28 @@ function HealthConnectCard({ S, toast, android, page = false }) {
 
   return (
     <Section title={c.section} tour="data-health"
-      footer={[h.on && c.footer, h.on && ios && airpods && t('AirPods Pro 3 or Powerbeats Pro 2 in? Your iPhone measures the heart rate for every set, unless your Apple Watch is already on it.'), reading && (h.readWeight && h.wHistory ? t('openGym reads only while it is open: heart rate for workouts of the last day, weigh-ins of the last year. Older workouts stay as they are.') : t('openGym reads only while it is open: heart rate for workouts of the last day, weigh-ins of the last 30 days. Older workouts stay as they are.'))].filter(Boolean).join(' ') || null}>
+      footer={[h.on && c.footer, h.on && ios && airpods && t('AirPods Pro 3 or Powerbeats Pro 2 in? Your iPhone measures the heart rate for every set, unless your Apple Watch is already on it.'), reading && (h.readWeight && h.wHistory ? t('JelloGym reads only while it is open: heart rate for workouts of the last day, weigh-ins of the last year. Older workouts stay as they are.') : t('JelloGym reads only while it is open: heart rate for workouts of the last day, weigh-ins of the last 30 days. Older workouts stay as they are.'))].filter(Boolean).join(' ') || null}>
       <Row icon="heart" iconTint="var(--red)" title={c.write}
         subtitle={t('Finished workouts and weigh-ins, from this phone only.')}>
         <Switch checked={!!h.on} disabled={busy} onChange={v => (v ? turnOn() : askOff())} />
       </Row>
       {h.on && h.error === 'permission' && <Row icon="warning" iconTint="var(--orange)"
         title={t('Permission withdrawn. Tap to allow again')} accessory="chevron" onClick={turnOn} />}
+      {/* Water (docs/LIFE_MODULES.md): its own permission, asked when the module went on; here it
+          can be seen and stopped. Off pauses the writes; what went in stays the user's. */}
+      {android && isOn(S, 'water') && <Row icon="drop" iconTint="var(--blue)" title={t('Water to Health Connect')}
+        subtitle={t('Every drink you log, written as a hydration record. Nothing is read back.')}>
+        <Switch checked={!!h.writeWater} disabled={busy} onChange={async v => {
+          setBusy(true)
+          try {
+            if (v) { const r = await enableWaterWrite(getState()); setH(r.health || await loadHealth()); if (!r.ok) toast(r.reason === 'denied' ? c.denied : c.failed) }
+            else setH(await disableWaterWrite())
+          } catch { toast(c.failed) }
+          setBusy(false)
+        }} />
+      </Row>}
+      {(h.on || reading || h.writeWater) && <Row icon="clock" iconTint="var(--blue)" title={t('Last sync')}
+        value={h.at ? fmtAgo(h.at) : t('Not yet')} />}
       <Row icon="heart" iconTint="var(--red)" title={t('Heart rate from your watch')}
         subtitle={t('After a workout, each set gets the heart rate your watch saved. Garmin, Fitbit, Galaxy Watch and friends welcome.')}>
         <Switch checked={!!h.readHr} disabled={busy} onChange={toggleRead('hr')} />
@@ -1969,6 +2090,21 @@ function HealthConnectCard({ S, toast, android, page = false }) {
         subtitle={t('Your smart scale’s weigh-ins land here. One you type in yourself always wins.')}>
         <Switch checked={!!h.readWeight} disabled={busy} onChange={toggleRead('weight')} />
       </Row>
+      {/* Steps (docs/LIFE_MODULES.md): read-only daily totals behind their own switch, asked when
+          the Steps module goes on. Phone and watch often hand the hub the same steps twice, so a
+          preferred source can name which one counts; left alone, the biggest single origin wins. */}
+      {android && <Row icon="steps" iconTint="var(--orange)" title={t('Daily steps')}
+        subtitle={t('Totals only, nothing written back. Turn on the Steps module to see them on Home.')}>
+        <Switch checked={!!h.readSteps} disabled={busy} onChange={toggleRead('steps')} />
+      </Row>}
+      {android && <Row icon="moon" iconTint="var(--indigo)" title={t('Sleep from your watch')}
+        subtitle={t('Nights, filed under the morning they end. A typed night can still be added.')}>
+        <Switch checked={!!h.readSleep} disabled={busy} onChange={toggleRead('sleep')} />
+      </Row>}
+      {!!h.readSteps && stepOrigins(S).length > 1 && <SelectRow icon="steps" iconTint="var(--orange)" title={t('Preferred source')}
+        value={S.stepsSource || ''} onChange={v => useStore.getState().update(s => { s.stepsSource = v || null })}
+        options={[{ value: '', label: t('Biggest day wins'), subtitle: t('A watch that mirrors the phone never counts twice.') },
+          ...stepOrigins(S).map(x => ({ value: x.o, label: originName(x.o) }))]} />}
       {reading && h.readError === 'permission' && <Row icon="warning" iconTint="var(--orange)"
         title={t('Permission withdrawn. Tap to allow again')} accessory="chevron"
         onClick={() => toggleRead(h.readHr ? 'hr' : 'weight')(true)} />}

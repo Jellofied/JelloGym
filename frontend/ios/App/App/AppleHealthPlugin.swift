@@ -6,8 +6,8 @@ import UIKit
 /**
  * Apple Health on the iPhone, the same calls as HealthConnectPlugin.java (lib/health-sync.js):
  * finished workouts and weigh-ins go to Apple Health, each with a sync identifier of its own
- * ('opengym-w-<id>', 'opengym-bw-<day>'), so writing one again replaces it and removing finds
- * exactly what openGym wrote. It asks to read the heart rate and the body weight too, for the
+ * ('jellogym-w-<id>', 'jellogym-bw-<day>'), so writing one again replaces it and removing finds
+ * exactly what JelloGym wrote. It asks to read the heart rate and the body weight too, for the
  * Apple Watch app's workout session, and keeps the switch where the watch link reads it
  * (App Group "healthEnabled").
  *
@@ -77,7 +77,7 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func setEnabled(_ call: CAPPluginCall) {
-        OpenGymGroup.defaults.set(call.getBool("on") ?? false, forKey: AppleHealthPlugin.enabledKey)
+        JelloGymGroup.defaults.set(call.getBool("on") ?? false, forKey: AppleHealthPlugin.enabledKey)
         call.resolve()
     }
 
@@ -199,7 +199,7 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         let start = Date(timeIntervalSince1970: startMs / 1000), end = Date(timeIntervalSince1970: endMs / 1000)
         try await builder.beginCollection(at: start)
         var meta = syncMetadata(id)
-        if let title = s["title"] as? String, !title.isEmpty { meta["OpenGymTitle"] = title }
+        if let title = s["title"] as? String, !title.isEmpty { meta["JelloGymTitle"] = title }
         try await builder.addMetadata(meta)
         try await builder.endCollection(at: end)
         _ = try await builder.finishWorkout()

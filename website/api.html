@@ -1,27 +1,27 @@
 <!DOCTYPE html>
 <!-- GENERATED FILE - do not edit by hand.
-     Built by scripts/build-api-docs.mjs from api/openapi.yaml (openGym API v1.4.3).
+     Built by scripts/build-api-docs.mjs from api/openapi.yaml (JelloGym API v1.4.3).
      Regenerate with: node scripts/build-api-docs.mjs -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>openGym: API</title>
-<meta name="description" content="The complete openGym HTTP API, documented as an OpenAPI spec: passkey auth, state sync, push notifications, pairing and admin routes.">
+<title>JelloGym: API</title>
+<meta name="description" content="The complete JelloGym HTTP API, documented as an OpenAPI spec: passkey auth, state sync, push notifications, pairing and admin routes.">
 <meta name="theme-color" content="#000000">
 <meta name="robots" content="index,follow,max-image-preview:large">
 <link rel="preconnect" href="https://stats.duarte-santos.ch">
-<meta property="og:title" content="openGym API reference">
-<meta property="og:description" content="The complete openGym HTTP API as an OpenAPI spec: passkey auth, state sync, push notifications, pairing and admin routes.">
+<meta property="og:title" content="JelloGym API reference">
+<meta property="og:description" content="The complete JelloGym HTTP API as an OpenAPI spec: passkey auth, state sync, push notifications, pairing and admin routes.">
 <meta property="og:image" content="https://opengym.ch/img/social.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="openGym: your training, your data, your server. Two phones showing the home and workout screens.">
+<meta property="og:image:alt" content="JelloGym: your training, your data, your server. Two phones showing the home and workout screens.">
 <meta property="og:url" content="https://opengym.ch/api.html">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="openGym">
+<meta property="og:site_name" content="JelloGym">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="openGym API reference">
+<meta name="twitter:title" content="JelloGym API reference">
 <meta name="twitter:image" content="https://opengym.ch/img/social.jpg">
 <link rel="canonical" href="https://opengym.ch/api.html">
 <link rel="icon" href="/favicon.ico" sizes="48x48">
@@ -160,7 +160,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
 <nav><div class="wrap nav-in">
   <a class="brand" href="/">
     <img src="icon-180.png" alt="" width="24" height="24">
-    openGym
+    JelloGym
   </a>
   <div class="nav-quick">
     <a class="ql site" href="/#features">Features</a>
@@ -234,7 +234,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
 
 <main id="main" class="api-main">
   <h1>API</h1>
-  <p class="lead">Every route the openGym backend serves (passkey auth, state sync,
+  <p class="lead">Every route the JelloGym backend serves (passkey auth, state sync,
      push, pairing, admin) as one hand-written
      OpenAPI&nbsp;spec. The same file lives
      <a href="https://github.com/DuarteSantos8/openGym/blob/main/api/openapi.yaml" rel="noopener">in the repository</a>
@@ -246,17 +246,17 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   </div>
   <p class="api-facts">
     <span>OpenAPI 3.1.0</span>
-    <span>openGym v1.4.3</span>
+    <span>JelloGym v1.4.3</span>
     <span>92 endpoints</span>
     <span>AGPL-3.0-or-later</span>
   </p>
 
   <section class="api-sec" id="overview">
     <h2>Overview</h2>
-    <p class="sub">Passkey (WebAuthn) auth + per-user state storage for openGym. One Node file, no framework, JSON-file
+    <p class="sub">Passkey (WebAuthn) auth + per-user state storage for JelloGym. One Node file, no framework, JSON-file
        storage, HMAC-signed session cookies.</p>
     <div class="srv">
-  <div class="srv-row"><code>/</code><span>Same origin as the openGym web app (the normal deployment)</span></div>
+  <div class="srv-row"><code>/</code><span>Same origin as the JelloGym web app (the normal deployment)</span></div>
   <div class="srv-row"><code>https://opengym.example.com</code><span>Your self-hosted instance</span></div>
     </div>
     <div class="ov-grid">
@@ -735,7 +735,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="ep-sum">A pairing code for a Zepp OS watch</span>
   </summary>
   <div class="ep-body">
-<p>A signed-in device asks for a code that the Zepp app's settings page for openGym redeems (<code>POST /api/watch/redeem</code>). 12 characters typed as <code>XXXX-XXXX-XXXX</code>, one per profile (a new one replaces the last), good for ten minutes, held only as a hash.</p>
+<p>A signed-in device asks for a code that the Zepp app's settings page for JelloGym redeems (<code>POST /api/watch/redeem</code>). 12 characters typed as <code>XXXX-XXXX-XXXX</code>, one per profile (a new one replaces the last), good for ten minutes, held only as a hash.</p>
     <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
 
 
@@ -761,7 +761,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="ep-sum">Redeem a watch pairing code for a watch token</span>
   </summary>
   <div class="ep-body">
-<p>Called by the openGym watch app's Side Service inside the Zepp phone app. The code is the credential (CSRF-exempt, throttled per address like a device link). The answer is a watch token (<code>ogw_…</code>) that opens <code>GET</code>/<code>POST /api/watch/box</code> and nothing else; it ends with &quot;sign out everywhere&quot;, a new password, a disabled account, an unlink, or 90 days without use.</p>
+<p>Called by the JelloGym watch app's Side Service inside the Zepp phone app. The code is the credential (CSRF-exempt, throttled per address like a device link). The answer is a watch token (<code>ogw_…</code>) that opens <code>GET</code>/<code>POST /api/watch/box</code> and nothing else; it ends with &quot;sign out everywhere&quot;, a new password, a disabled account, an unlink, or 90 days without use.</p>
     <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Public: no authentication required.</span></p>
 
 <p class="ep-h">Request body <span class="p-hint">(JSON)</span></p><div class="ptab">
@@ -5796,7 +5796,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="p-desc">A whole plan, from a <code>create</code> job (routines, week and any custom exercises).</span>
   </div>
   <div class="prow">
-    <span class="p-name">bundle.opengym_plan</span>
+    <span class="p-name">bundle.jellogym_plan</span>
     <span class="p-type">always 1</span>
     <span class="p-desc"></span>
   </div>
@@ -6272,7 +6272,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
 </main>
 
 <footer><div class="wrap foot">
-  <span class="c">openGym · AGPL-3.0 · © 2026 <a href="https://duarte-santos.ch" rel="noopener">Duarte Santos</a></span>
+  <span class="c">JelloGym · AGPL-3.0 · © 2026 <a href="https://duarte-santos.ch" rel="noopener">Duarte Santos</a></span>
   <div class="links">
     <a href="docs.html">Docs</a>
     <a href="about.html">About</a>

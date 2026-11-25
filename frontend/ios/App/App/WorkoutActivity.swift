@@ -7,7 +7,7 @@ import UserNotifications
  * The running workout's Live Activity: what it carries, and its buttons (Log set, and Next exercise
  * or Skip rest beside it). Compiled into both
  * the app and the widget extension (ios/ci/add-widgets.rb): the extension draws it
- * (OpenGymWidgets/LiveActivityWidget.swift), the app starts and updates it for the page
+ * (JelloGymWidgets/LiveActivityWidget.swift), the app starts and updates it for the page
  * (LiveActivityPlugin.swift, lib/live-activity.js) and runs the buttons' intents.
  *
  * The page sends both halves as JSON; the field names are lib/live-activity.js buildLiveActivity's.
@@ -15,8 +15,8 @@ import UserNotifications
  */
 
 /// The App Group the app, the widget extension and the asset pack downloader share.
-enum OpenGymGroup {
-    static let id = "group.ch.opengym.app"
+enum JelloGymGroup {
+    static let id = "group.ch.jellogym.app"
     static var defaults: UserDefaults { UserDefaults(suiteName: id) ?? .standard }
     static var container: URL? { FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: id) }
 }
@@ -132,12 +132,12 @@ struct WorkoutActivityAttributes: ActivityAttributes {
  */
 enum LiveActivityQueue {
     static let key = "liveActivityEvents"
-    static let didChange = Notification.Name("OpenGymLiveActivityEvent")
+    static let didChange = Notification.Name("JelloGymLiveActivityEvent")
     /// Skip rest was tapped: RestAlertPlugin forgets the alert it would post on leaving the front.
-    static let restSkipped = Notification.Name("OpenGymLiveActivityRestSkipped")
+    static let restSkipped = Notification.Name("JelloGymLiveActivityRestSkipped")
     /// Stop auto was tapped, or a set logged that changes the chain's timing: RestAlertPlugin drops
     /// the alerts of the chain of holds after the one booked now (the page books again when it wakes).
-    static let autoStopped = Notification.Name("OpenGymLiveActivityAutoStopped")
+    static let autoStopped = Notification.Name("JelloGymLiveActivityAutoStopped")
     private static let lock = NSLock()
 
     static func all() -> [[String: Any]] {
@@ -160,14 +160,14 @@ enum LiveActivityQueue {
     }
 
     private static func read() -> [[String: Any]] {
-        guard let data = OpenGymGroup.defaults.data(forKey: key),
+        guard let data = JelloGymGroup.defaults.data(forKey: key),
               let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
         return list
     }
 
     private static func write(_ list: [[String: Any]]) {
         if let data = try? JSONSerialization.data(withJSONObject: list) {
-            OpenGymGroup.defaults.set(data, forKey: key)
+            JelloGymGroup.defaults.set(data, forKey: key)
         }
     }
 }
@@ -267,7 +267,7 @@ struct StopAutoIntent: LiveActivityIntent {
 
 @available(iOS 17.0, *)
 enum LiveActivityTick {
-    static let restRequestId = "opengym.rest"   // RestAlertPlugin.requestId: the page's own replaces it
+    static let restRequestId = "jellogym.rest"   // RestAlertPlugin.requestId: the page's own replaces it
 
     static func tick(wid: String, exId: String, entryIdx: Int, setIdx: Int, now: Date = Date()) async {
         guard let activity = Activity<WorkoutActivityAttributes>.activities.first(where: { $0.attributes.wid == wid }) else { return }

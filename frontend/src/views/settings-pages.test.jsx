@@ -94,6 +94,8 @@ describe('the root', () => {
     expect(host.querySelector('.sp-acct .lrow-t').textContent).toBe('Guest')
     expect(host.querySelector('.sp-acct .lrow-s').textContent).toBe('Your data lives on this device. Sign in to sync.')
     // a guest in a browser has no reminders (no push server) and no Coach page (the server's Coach)
+    // Water is default-off (lib/modules.js), so a guest in a browser that never enabled it has no
+    // Water row. The page itself is covered by the pages section (mount('water') bypasses the gate).
     expect(titles()).toEqual(['Guest', 'Modules', 'Workout', 'Timer alerts', 'Plan & schedule', 'Units & language', 'Equipment', 'Look & Home', 'Integrations', 'Data & backup', 'About & updates'])
     expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe('1:30 rest · Cards')
     expect(rowTitled('Timer alerts').querySelector('.lrow-v').textContent).toBe('Sound · Vibrate')
@@ -114,7 +116,7 @@ describe('the root', () => {
     expect(rule).toMatch(/line-clamp:3/)
     expect(rule).toMatch(/min-width:min-content/)
     // P10 (redesign 1.4.5): on every phone width the preview is the row's subtitle, under the title
-    const phone = css.match(/@media \(max-width:430px\)\{\n  \.lrow\.sp-root-row:has\(\.lrow-v\)\{([^}]*)\}/)?.[1] || ''
+    const phone = css.match(/@media \(max-width:430px\)\{\r?\n  \.lrow\.sp-root-row:has\(\.lrow-v\)\{([^}]*)\}/)?.[1] || ''
     expect(phone).toMatch(/display:grid/)
     expect(css).toMatch(/\.lrow\.sp-root-row \.lrow-v\{grid-column:2;grid-row:2;[^}]*text-align:start/)
     // the sub-page title takes a second line rather than an ellipsis ("Alertas do temporizador")
@@ -308,7 +310,7 @@ describe('the pages', () => {
   it('each search entry is a row on its page (guest in a browser)', () => {
     const byPage = {}
     for (const e of SEARCH) if (pageVisible(PAGES[e.page].parent || e.page, guestWeb) && (!e.when || e.when(guestWeb))) (byPage[e.page] ||= []).push(e.title)
-    expect(Object.keys(byPage).sort()).toEqual(['about', 'advanced', 'alerts', 'data', 'equipment', 'integrations', 'look', 'modules', 'plan', 'themes', 'units', 'workout'])
+    expect(Object.keys(byPage).sort()).toEqual(['about', 'advanced', 'alerts', 'data', 'equipment', 'food', 'integrations', 'look', 'modules', 'plan', 'themes', 'units', 'water', 'workout'])
     for (const [page, want] of Object.entries(byPage)) {
       mount(page)
       // A row, or a button with the same words (the "Works with" chips on Integrations).

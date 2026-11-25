@@ -5,16 +5,16 @@
 .focus-superset-inline strong{min-width:0;font-weight:600;overflow-wrap:anywhere}
 .focus-superset-inline span{color:var(--label-2)}
 .focus-superset-inline .icn{font-size:14px}
-.focus-superset-inline .btn{min-height:32px;padding-inline:8px;color:var(--acc-ink)}
+.focus-superset-inline .btn{min-height:32px;padding-inline:8px;color:var(--red)}
 .focus-superset-nav{display:flex;margin-left:auto}
 .focus-superset-nav button{display:grid;place-items:center;width:44px;height:44px;color:var(--label-2)}
 .focus-superset-nav button:disabled{opacity:.3}
-.focus-card{padding:16px;border-radius:var(--r-lg);background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--acc-line)}
+.focus-card{padding:var(--pad-card);border-radius:var(--r-lg);background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--acc-line)}
 .focus-card-header{display:flex;align-items:center;gap:6px;padding-bottom:12px;border-bottom:var(--hair) solid var(--sep)}
-.focus-card-header h2{flex:1;min-width:0;overflow-wrap:anywhere;font-size:var(--fs-title3);line-height:1.2;text-transform:capitalize}
+.focus-card-header h2{flex:1;min-width:0;overflow-wrap:anywhere;font-family:var(--n-head);font-size:var(--fs-title3);font-weight:400;letter-spacing:.01em;line-height:1.15;text-transform:capitalize}
 .focus-warmup{font-size:var(--fs-callout)}
 /* The set on screen is taken to failure: the same purple "F" the set rows wear. */
-.focus-failure{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:var(--purple);color:#fff;font-size:var(--fs-caption);font-weight:700}
+.focus-failure{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:var(--red);color:#fff;font-size:var(--fs-caption);font-weight:700}
 .focus-context{display:grid;gap:5px;margin-top:10px}
 .focus-tags{display:flex;flex-wrap:wrap;gap:5px}
 .focus-note,.focus-last,.focus-guidance{color:var(--label-2);font-size:var(--fs-caption);line-height:1.35}

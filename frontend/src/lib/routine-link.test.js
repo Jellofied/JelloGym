@@ -36,7 +36,7 @@ describe('routine links: encode and decode', () => {
     expect(payload.startsWith(LINK_FMT + '.d.')).toBe(true)
     const back = await decodePayload(payload)
     expect(back).toEqual(bundle)
-    expect(back.opengym_plan).toBe(1)
+    expect(back.jellogym_plan).toBe(1)
     expect(back.from).toBe('Alex')
     expect(back.names[BENCH]).toBe(EXIDX[BENCH].n)
     expect(back.names.cx1).toBeUndefined()
@@ -100,7 +100,7 @@ describe('routine links: encode and decode', () => {
   })
 
   it('stops a tiny link that inflates to something huge', async () => {
-    const huge = new TextEncoder().encode('{"opengym_plan":1,"routines":[],"x":"' + ' '.repeat(400000) + '"}')
+    const huge = new TextEncoder().encode('{"jellogym_plan":1,"routines":[],"x":"' + ' '.repeat(400000) + '"}')
     const cs = new CompressionStream('deflate-raw')
     const w = cs.writable.getWriter(); w.write(huge); w.close()
     const zipped = new Uint8Array(await new Response(cs.readable).arrayBuffer())
@@ -136,7 +136,7 @@ describe('routine links: reading a link', () => {
   it('finds the payload in every form the link travels in', () => {
     for (const url of [
       'https://opengym.ch/r#' + P, 'https://opengym.ch/r/#' + P, 'https://www.opengym.ch/r#' + P,
-      'https://opengym.ch/r/index.html#' + P, 'opengym://r#' + P, 'opengym://r/#' + P, 'OPENGYM://r#' + P,
+      'https://opengym.ch/r/index.html#' + P, 'jellogym://r#' + P, 'jellogym://r/#' + P, 'JELLOGYM://r#' + P,
       'https://gym.example.org/#/r/' + P, 'http://192.168.1.10:8080/#/r/' + P, 'https://opengym.ch/demo/#/r/' + P,
       linkFor(P),
     ]) expect(routinePayloadFromUrl(url), url).toBe(P)
@@ -145,7 +145,7 @@ describe('routine links: reading a link', () => {
   it('ignores everything else, without throwing', () => {
     for (const url of [
       'https://opengym.ch/r', 'https://opengym.ch/r#', 'https://opengym.ch/nfc?do=start', 'https://evil.test/r#' + P,
-      'https://opengym.ch/rest#' + P, 'opengym://nfc?do=start', 'opengym://r/extra#' + P, 'opengym://x#' + P,
+      'https://opengym.ch/rest#' + P, 'jellogym://nfc?do=start', 'jellogym://r/extra#' + P, 'jellogym://x#' + P,
       'https://opengym.ch/r#hello', 'https://opengym.ch/r#1.d.<script>', 'javascript:alert(1)', '', null, 42,
       'https://opengym.ch/r#1.d.' + 'A'.repeat(17000),
     ]) expect(routinePayloadFromUrl(url), String(url).slice(0, 60)).toBeNull()
@@ -206,7 +206,7 @@ describe('routine links: importing', () => {
   })
 
   it('reads an older plain plan bundle (no names, no from) and drops exercises it does not know', () => {
-    const old = { opengym_plan: 1, name: 'Old', routines: [{ id: 'o', name: 'Old one', ex: [{ id: BENCH, sets: 3, reps: 5 }, { id: 'nope-123', sets: 1 }] }] }
+    const old = { jellogym_plan: 1, name: 'Old', routines: [{ id: 'o', name: 'Old one', ex: [{ id: BENCH, sets: 3, reps: 5 }, { id: 'nope-123', sets: 1 }] }] }
     const parsed = readRoutineBundle(old, 'kg')
     expect(parsed.dropped).toBe(1)
     expect(parsed.from).toBe('')
@@ -214,13 +214,13 @@ describe('routine links: importing', () => {
   })
 
   it('a link whose exercises are all unknown here is refused, not imported empty', () => {
-    const data = { opengym_plan: 1, routines: [{ id: 'o', name: 'X', ex: [{ id: 'nope-1', sets: 1 }] }] }
+    const data = { jellogym_plan: 1, routines: [{ id: 'o', name: 'X', ex: [{ id: 'nope-1', sets: 1 }] }] }
     expect(() => readRoutineBundle(data, 'kg')).toThrow(expect.objectContaining({ code: 'empty' }))
     expect(() => readRoutineBundle({ nope: 1 }, 'kg')).toThrow(expect.objectContaining({ code: 'bad-link' }))
   })
 
   it('only the first routine of a hand-made link with several', () => {
-    const data = { opengym_plan: 1, week: { 1: ['a'] }, routines: [{ id: 'a', name: 'A', ex: [{ id: BENCH, sets: 1, reps: 1 }] }, { id: 'b', name: 'B', ex: [{ id: BENCH, sets: 1, reps: 1 }] }] }
+    const data = { jellogym_plan: 1, week: { 1: ['a'] }, routines: [{ id: 'a', name: 'A', ex: [{ id: BENCH, sets: 1, reps: 1 }] }, { id: 'b', name: 'B', ex: [{ id: BENCH, sets: 1, reps: 1 }] }] }
     const friend = { unit: 'kg', routines: [], week: {}, customEx: [] }
     importRoutineLink(friend, readRoutineBundle(data, 'kg'))
     expect(friend.routines.map(r => r.name)).toEqual(['A'])

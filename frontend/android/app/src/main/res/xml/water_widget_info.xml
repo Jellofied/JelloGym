@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Water widget: fixed at 2x2, no configure screen, one purpose. The app redraws it whenever
+     the day's drinks or the goal change; the period only turns the day. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="10800000"
+    android:initialLayout="@layout/widget_water"
+    android:previewLayout="@layout/widget_water"
+    android:previewImage="@mipmap/ic_launcher"
+    android:description="@string/widget_water_desc"
+    android:widgetCategory="home_screen" />

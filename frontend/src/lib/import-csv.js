@@ -10,7 +10,7 @@
 //   FitNotes 2 (iOS)   Date,Exercise,Category,Weight (kg),Weight (lbs),Reps,Distance,Distance Unit,Time,Notes,Kind
 //   Strong             Date,Workout Name,Duration,Exercise Name,Set Order,Weight,Reps,Distance,Seconds,Notes,Workout Notes,RPE
 //   Hevy               title,start_time,end_time,description,exercise_title,superset_id,exercise_notes,set_index,set_type,weight_kg,reps,distance_km,duration_seconds,rpe
-//   openGym            our own CSV export, lib/export-csv.js WORKOUT_COLUMNS (#647)
+//   JelloGym            our own CSV export, lib/export-csv.js WORKOUT_COLUMNS (#647)
 // Read from the header GymMane documents in its code (not from a real file yet, #647):
 //   GymMane            date,exercise,muscle,set,reps,weight_kg,volume_kg,est_1rm_kg,distance_km,duration_s,rpe
 // Anything else falls through to loose header matching, which covers Lyfta and the
@@ -24,6 +24,7 @@
 import { EXDB, EXIDX, canonicalExId, isCardio as isCardioEx } from './exercises.js'
 import { uid } from './format.js'
 import { addWeighIn, readingsOf, hashId } from './weigh-ins.js'
+import { findHabitByName } from './habits.js'
 import {
   MEASUREMENT_FIELDS, builtinCsvColumn, parseCustomCsvColumn, fromCsvUnit, sameMeasurementKind,
   emptyMeasurement, measurementEntryHasValues, normalizeMeasurementEntry, normalizeMeasurementsState,
@@ -137,7 +138,7 @@ function mapHeader(header) {
 /** Name of the app a header looks like — shown back to the user so they can sanity-check. */
 export function detectSource(header) {
   const h = header.map(norm)
-  if (h.includes('exercise id') && h.includes('set type')) return 'openGym'
+  if (h.includes('exercise id') && h.includes('set type')) return 'JelloGym'
   if (h.includes('exercise') && h.includes('est 1rm kg')) return 'GymMane'
   if (h.includes('exercise title') && h.includes('set index')) return 'Hevy'
   if (h.includes('exercise name') && h.includes('set order')) return 'Strong'
@@ -576,7 +577,7 @@ const toKm = (v, unit) => num(v) * (KM[String(unit || 'km').toLowerCase().trim()
 /* --------------------------------------------------------------- parse ---- */
 
 /**
- * Read an export into workouts openGym understands, WITHOUT touching state — the caller
+ * Read an export into workouts JelloGym understands, WITHOUT touching state — the caller
  * shows the summary for confirmation first. Nothing here throws on a bad row: a history
  * of several thousand sets will contain oddities, and losing the file over one of them
  * helps nobody. Bad rows are counted and reported instead.
@@ -629,7 +630,7 @@ export function parseWorkoutRows(rows, map, source, { unit = 'kg', customEx = []
   // Our own export (lib/export-csv.js) says more than the others: the catalogue id, which side of
   // a per-side set a row is, a drop-set's drops as rows of their own. Read that way only when the
   // header says it is ours.
-  const own = source === 'openGym'
+  const own = source === 'JelloGym'
   const dateCol = map.date !== undefined ? 'date' : map.startTime !== undefined ? 'startTime' : null
   if (!dateCol || map.exercise === undefined) return { error: 'unrecognised' }
   // Strong's Duration is how long the whole workout took ("1h 5m", "52m"), written on every
@@ -1126,10 +1127,93 @@ export function importHasWeighIn(S, b) {
 // The same imported weigh-in gets the same id on every device that imports the file.
 const importReadingId = b => 'i' + hashId(`${b.d}|${b.at || ''}|${b.w}`)
 
+/**
+ * Our own water file (lib/export-csv.js waterCSV): header `date,ml`, one row per drink. Only the
+ * exact header counts, so no third-party file is mistaken for it; dates are ISO as we write them.
+ */
+export function parseWater(text) {
+  const rows = parseCSV(String(text))
+  if (rows.length < 2) return { error: 'empty' }
+  const head = (rows[0] || []).map(c => String(c).trim().toLowerCase())
+  const mlCol = head.indexOf('ml')
+  if (head[0] !== 'date' || mlCol < 0) return { error: 'unrecognised' }
+  const water = []
+  let skipped = 0
+  for (let i = 1; i < rows.length; i++) {
+    const d = String(rows[i][0] ?? '').trim().slice(0, 10)
+    const n = Math.round(num(rows[i][mlCol]))
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !(n > 0) || n > 2000) { skipped++; continue }
+    water.push({ d, ml: n })
+  }
+  if (!water.length) return { error: 'unrecognised' }
+  return { kind: 'water', source: 'JelloGym', water, skipped }
+}
+
+/** The same imported drink gets the same entry id on every device that imports the file (k is its
+ *  row number, so two identical rows stay two drinks). */
+export const importWaterEntryId = (b, k) => 'i' + hashId(`${b.d}|${b.ml}|${k}`)
+
+/**
+ * Our own habits file (lib/export-csv.js habitsCSV): header `date,habit,value`, one row per
+ * check-in. Only the exact header counts. Values that name no live habit are counted skipped.
+ */
+export function parseHabits(text) {
+  const rows = parseCSV(String(text))
+  if (rows.length < 2) return { error: 'empty' }
+  const head = (rows[0] || []).map(c => String(c).trim().toLowerCase())
+  const habitCol = head.indexOf('habit'), valCol = head.indexOf('value')
+  if (head[0] !== 'date' || habitCol < 0 || valCol < 0) return { error: 'unrecognised' }
+  const habits = []
+  let skipped = 0
+  for (let i = 1; i < rows.length; i++) {
+    const d = String(rows[i][0] ?? '').trim().slice(0, 10)
+    const name = String(rows[i][habitCol] ?? '').trim()
+    const value = String(rows[i][valCol] ?? '').trim().toLowerCase()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !name || !value) { skipped++; continue }
+    habits.push({ d, name, value })
+  }
+  if (!habits.length) return { error: 'unrecognised' }
+  return { kind: 'habit', source: 'JelloGym', habits, skipped }
+}
+
+/** The same imported check lands on the same entry id on every device that imports the file. */
+export const importHabitEntryId = (defId, b, k) => 'i' + hashId(`${defId}|${b.d}|${b.value}|${k}`)
+
+/**
+ * Our own food file (lib/export-csv.js foodCSV): header `date,kcal,protein,label`, one row per
+ * logged meal. Only the exact four-column header counts, in our order.
+ */
+export function parseFood(text) {
+  const rows = parseCSV(String(text))
+  if (rows.length < 2) return { error: 'empty' }
+  const head = (rows[0] || []).map(c => String(c).trim().toLowerCase())
+  if (head[0] !== 'date' || head[1] !== 'kcal' || head[2] !== 'protein' || head[3] !== 'label') return { error: 'unrecognised' }
+  const food = []
+  let skipped = 0
+  for (let i = 1; i < rows.length; i++) {
+    const d = String(rows[i][0] ?? '').trim().slice(0, 10)
+    const kcal = Math.round(num(rows[i][1])), protein = Math.round(num(rows[i][2]))
+    const label = String(rows[i][3] ?? '').trim().slice(0, 60)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !((kcal > 0 && kcal <= 20000) || (protein > 0 && protein <= 1000))) { skipped++; continue }
+    food.push({ d, kcal: Math.max(0, kcal), protein: Math.max(0, protein), label })
+  }
+  if (!food.length) return { error: 'unrecognised' }
+  return { kind: 'food', source: 'JelloGym', food, skipped }
+}
+
+/** The same imported meal gets the same entry id on every device (k is its row number). */
+export const importFoodEntryId = (b, k) => 'i' + hashId(`${b.d}|${b.kcal}|${b.protein}|${b.label}|${k}`)
+
 /** Sniff the file and parse it as whatever it is. */
 export function parseImport(text, opts) {
   const s = String(text)
   if (s.includes('HKQuantityTypeIdentifier') || /^\s*</.test(s)) return parseBodyweight(s, opts)
+  const asWater = parseWater(s)
+  if (!asWater.error) return asWater
+  const asHabits = parseHabits(s)
+  if (!asHabits.error) return asHabits
+  const asFood = parseFood(s)
+  if (!asFood.error) return asFood
   const asWorkouts = parseWorkoutCSV(s, opts)
   if (!asWorkouts.error) return asWorkouts
   const asWeights = parseBodyweight(s, opts)
@@ -1144,6 +1228,55 @@ export function parseImport(text, opts) {
  * not against each other); a day already in the history brings neither.
  */
 export function mergeImport(S, parsed) {
+  if (parsed.kind === 'food') {
+    // One entry per row with the row's deterministic id, so two phones importing one file land
+    // on the same meals and importing it twice adds nothing. A removed meal's tombstone keeps
+    // the row out.
+    S.food = (S.food && typeof S.food === 'object' && !Array.isArray(S.food)) ? { ...S.food } : {}
+    let added = 0
+    parsed.food.forEach((b, k) => {
+      const id = importFoodEntryId(b, k)
+      if (S.food[id] !== undefined) return
+      S.food[id] = { d: b.d, kcal: b.kcal, protein: b.protein, ...(b.label ? { label: b.label } : {}), _ts: Date.now() }
+      added++
+    })
+    return { added, skipped: parsed.food.length - added }
+  }
+  if (parsed.kind === 'habit') {
+    // A row re-joins a live habit by name (any case); unknown names are left out. The entry id
+    // comes from the habit's live id, day and value, so two phones importing one file build one
+    // history — and importing it twice adds nothing. The value lands by the habit's own type.
+    S.habitLogs = (S.habitLogs && typeof S.habitLogs === 'object' && !Array.isArray(S.habitLogs)) ? { ...S.habitLogs } : {}
+    let added = 0, unmatched = 0
+    parsed.habits.forEach((b, k) => {
+      const def = findHabitByName(S, b.name)
+      if (!def) { unmatched++; return }
+      const id = importHabitEntryId(def.id, b, k)
+      if (S.habitLogs[id] !== undefined) return
+      const entry = { h: def.id, d: b.d, _ts: Date.now() }
+      if (b.value === 'skip') entry.skip = 1
+      else if (def.type === 'count') entry.n = Math.round(Number(b.value)) || 1
+      else if (def.type === 'timed') entry.sec = (Math.round(Number(b.value)) || 0) * 60
+      S.habitLogs[id] = entry
+      added++
+    })
+    return { added, skipped: parsed.habits.length - added, unmatched }
+  }
+  if (parsed.kind === 'water') {
+    // One entry per row, the same row on both devices landing on the same entry id (importWaterEntryId),
+    // so two phones importing one file merge into one set of drinks. A row whose entry the profile
+    // already has — live or removed — is left alone: an import never rewrites what you logged or
+    // undid here, and importing the file twice adds nothing.
+    S.water = (S.water && typeof S.water === 'object' && !Array.isArray(S.water)) ? { ...S.water } : {}
+    let added = 0
+    parsed.water.forEach((b, k) => {
+      const id = importWaterEntryId(b, k)
+      if (S.water[id] !== undefined) return
+      S.water[id] = { d: b.d, ml: b.ml, _ts: Date.now() }
+      added++
+    })
+    return { added, skipped: parsed.water.length - added }
+  }
   if (parsed.kind === 'bodyweight') {
     // Marked as imported (`src`, as lib/health-read.js marks what it reads): mostly another app's
     // or the health hub's own export, so it is never written back to Apple Health or Health

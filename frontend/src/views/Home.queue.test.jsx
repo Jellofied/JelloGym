@@ -1,15 +1,15 @@
 // @vitest-environment happy-dom
 // A coach week (S.queue) runs by order, not by weekday, so Home swaps the seven dots for a
-// progress row. Covered here: one chip per session in slot order with its state word, a tap on
-// an undone chip starting that routine alone, a done chip staying inert, the status line's
-// states, the today row still answering through the same helper, and a session pinned to a day
-// (S.dayPlan[iso] = queue routine id) wearing its day on the chip and yielding the light.
+// progress row. Covered here: the row's name and progress count, the today row answering through
+// the same helper (which session is next and starting one are the today row's and Plan's, not the
+// progress row's), a session in progress winning over Start, and the today row reading pins
+// (S.dayPlan[iso] = queue routine id) like any override.
 import React, { act } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { useStore } from '../store/useStore.js'
 import { startFlow } from '../sheets.jsx'
-import { todayISO, isoOf, fmtDate } from '../lib/format.js'
+import { todayISO, isoOf } from '../lib/format.js'
 import Home from './Home.jsx'
 import { setLang } from '../lib/i18n.js'
 
@@ -52,77 +52,50 @@ const setS = (over = {}) => useStore.setState(s => ({
   S: { ...s.S, routines, week: {}, dayPlan: {}, workouts: [], active: null, queue: queue(), rotation: null, scheduleMode: null, ...over }, user: null,
 }))
 const mount = () => act(() => root.render(<Home />))
-const chips = () => [...host.querySelectorAll('.queue .chip')]
-const chipTexts = () => chips().map(c => c.textContent)
-const status = () => host.querySelector('.queue .queue-status')?.textContent
+const header = () => host.querySelector('.queue .row')?.textContent
 const todayTitle = () => host.querySelector('.today-row .ttl')?.textContent
 const card = () => [...host.querySelectorAll('.card .card-head-sub')].map(e => e.textContent).find(x => x.includes('this week'))
 
 describe('Home — coach week progress row', () => {
-  it('replaces the weekday dots with one chip per session, in slot order, and lights the first', () => {
+  it('replaces the weekday dots with a one-line progress row, named and counted', () => {
     setS()
     mount()
     expect(host.querySelector('.week')).toBeNull()
     expect(host.querySelectorAll('.wday').length).toBe(0)
     expect(host.querySelector('.queue .row .small').textContent).toBe('US W1')
-    expect(chipTexts()).toEqual(['US W1 D1Up next', 'US W1 D2Later', 'US W1 D3Later'])
-    expect(chips()[0].className).toBe('chip on')
-    expect(status()).toBe('Next: US W1 D1, today')
+    expect(header()).toBe('US W10 / 3')
     expect(todayTitle()).toBe('US W1 D1')
+    // The row itself no longer lists the sessions or names the next one: the today row does.
+    expect(host.querySelectorAll('.queue .chip').length).toBe(0)
+    expect(host.querySelector('.queue-status')).toBeNull()
   })
 
-  it('keeps "Up next" in sentence case, as Plan says it, though .chip capitalizes names', async () => {
-    setS()
-    mount()
-    expect(chips()[0].querySelector('.qstate').textContent).toBe('Up next')
-    const { readFileSync } = await import('node:fs')
-    const css = readFileSync(`${process.cwd()}/src/index.css`, 'utf8')
-    expect(css).toMatch(/\.chip \.qstate\{text-transform:none\}/)
-  })
-
-  it('a finished workout on a routine marks its chip done and moves the light on', () => {
+  it('a logged session moves the count and the today row on together', () => {
     setS({ workouts: [logged('d1')] })
     mount()
-    expect(chipTexts()).toEqual(['US W1 D1Done', 'US W1 D2Up next', 'US W1 D3Later'])
-    expect(chips()[0].disabled).toBe(true)
-    expect(chips()[1].className).toBe('chip on')
-    expect(host.querySelectorAll('.queue .row .small')[1].textContent).toBe('1 / 3')
-    expect(status()).toBe('Next: US W1 D2, today')
+    expect(header()).toBe('US W11 / 3')
     expect(todayTitle()).toBe('US W1 D2')
   })
 
-  it('tapping an undone chip starts that routine alone, in any order; a done chip does nothing', () => {
-    setS({ workouts: [logged('d1')] })
-    mount()
-    act(() => { chips()[2].click() })
-    expect(startFlow).toHaveBeenCalledTimes(1)
-    expect(startFlow).toHaveBeenCalledWith(['d3'])
-    act(() => { chips()[0].click() })
-    expect(startFlow).toHaveBeenCalledTimes(1)
-  })
-
-  it('a session in progress wins over a chip tap, as on the today row', () => {
+  it('a session in progress keeps the today row on it: Start becomes Resume', () => {
     setS({ active: { id: 'a', name: 'US W1 D1', start: Date.now(), cur: 0, entries: [], routineIds: ['d1'] } })
     mount()
-    act(() => { chips()[1].click() })
-    expect(startFlow).not.toHaveBeenCalled()
+    expect(host.querySelector('.today-row .tag')?.textContent).toBe('Resume')
   })
 
-  it('before startsOn it says when the week starts, and the today row points at that day', () => {
+  it('before startsOn the today row points at the week starting, with no chip row to say it twice', () => {
     const startsOn = daysFromToday(2)
     setS({ queue: queue({ startsOn }) })
     mount()
-    expect(status()).toBe('Next week starts ' + fmtDate(startsOn, true))
-    expect(chipTexts()[0]).toBe('US W1 D1Up next')
     expect(todayTitle()).toBe('Rest day')
     expect(host.querySelector('.today-row .ss').textContent).toMatch(/^Next session: \w+, US W1 D1$/)
+    expect(host.querySelectorAll('.queue .chip').length).toBe(0)
   })
 
   it('a rotation-managed queue never names a weekday on its empty gap — the row above already says what is next', () => {
     const startsOn = daysFromToday(2)
     setS({ queue: queue({ startsOn, rotationId: 'r1' }) })
     mount()
-    expect(status()).toBe('Next week starts ' + fmtDate(startsOn, true))
     expect(todayTitle()).toBe('Rest day')
     expect(host.querySelector('.today-row .ss')).toBeNull()
   })
@@ -138,50 +111,33 @@ describe('Home — coach week progress row', () => {
     expect(host.querySelector('.today-row .ss')).toBeNull()
   })
 
-  it('a complete week says so, every chip is inert, and the day goes back to the weekday plan', () => {
+  it('a complete week tallies full, and the day goes back to the weekday plan', () => {
     setS({ workouts: [logged('d1'), logged('d2'), logged('d3')], week: { [new Date().getDay()]: ['own'] } })
     mount()
-    expect(status()).toBe('Week complete, ask the coach')
-    expect(chips().every(c => c.disabled)).toBe(true)
-    expect(host.querySelectorAll('.queue .row .small')[1].textContent).toBe('3 / 3')
+    expect(header()).toBe('US W13 / 3')
     expect(todayTitle()).toBe('Core')
   })
 
-  it('a pass this app manages gets its own copy, not the coach-week wording', () => {
+  it('a pass this app manages gets its own wording in the header, not the coach-week count', () => {
     setS({
       queue: queue({ rotationId: 'r1' }),
       rotation: { id: 'r1', sequence: ['d1', 'd2', 'd3'], label: 'US W1' },
       workouts: [logged('d1'), logged('d2'), logged('d3')],
     })
     mount()
-    expect(status()).toBe('Round complete')
-    // your own loop counts in rounds, like Plan; a coach week keeps the bare count (above)
-    expect(host.querySelectorAll('.queue .row .small')[1].textContent).toBe('3 of 3 done this round.')
-  })
-
-  it('a managed pass waiting on its startsOn says so without naming a coach week', () => {
-    const startsOn = daysFromToday(2)
-    setS({
-      queue: queue({ startsOn, rotationId: 'r1' }),
-      rotation: { id: 'r1', sequence: ['d1', 'd2', 'd3'], label: 'US W1' },
-    })
-    mount()
-    expect(status()).toBe('Next round starts ' + fmtDate(startsOn, true) + '.')
+    expect(header()).toBe('Rotation3 of 3 done this round.')
   })
 
   it('own routines on the weekday ride along beside the queue session', () => {
     setS({ week: { [new Date().getDay()]: ['own'] } })
     mount()
     expect(todayTitle()).toBe('US W1 D1 + Core')
-    expect(chipTexts().length).toBe(3)
   })
 
-  it('a rest override for today wins on the today row, and the status line stops saying "today"', () => {
+  it('a rest override for today wins on the today row', () => {
     setS({ dayPlan: { [todayISO()]: 'rest' } })
     mount()
     expect(todayTitle()).toBe('Rest day')
-    expect(status()).toBe('Next: US W1 D1')
-    expect(chips()[0].className).toContain('on')
   })
 
   it('a malformed queue from another client shows the weekday dots, never an empty card', () => {
@@ -207,7 +163,7 @@ describe('Home — coach week progress row', () => {
     setS({ week: { [new Date().getDay()]: ['own'] }, workouts: [logged('d1'), core] })
     mount()
     expect(card()).toMatch(/^2 \/ 4 this week · 2 workouts total$/)
-    expect(host.querySelectorAll('.queue .row .small')[1].textContent).toBe('1 / 3')
+    expect(header()).toBe('US W11 / 3')
   })
 
   it('a managed pass counts your own day beside it exactly as an external one does — ownership plays no part in the tally', () => {
@@ -220,7 +176,7 @@ describe('Home — coach week progress row', () => {
     })
     mount()
     expect(card()).toMatch(/^2 \/ 4 this week · 2 workouts total$/)
-    expect(host.querySelectorAll('.queue .row .small')[1].textContent).toBe('1 of 3 done this round.')
+    expect(header()).toBe('Rotation1 of 3 done this round.')
   })
 
   it('without a queue the weekday dots are back', () => {
@@ -235,56 +191,27 @@ describe('Home — a session pinned to a day', () => {
   it('a fulfilled pin — pinned to today, done on an earlier day — reads as no override on the today row', () => {
     setS({ dayPlan: { [todayISO()]: 'd1' }, workouts: [logged('d1')] })
     mount()
-    expect(chipTexts()).toEqual(['US W1 D1Done', 'US W1 D2Up next', 'US W1 D3Later'])
-    expect(status()).toBe('Next: US W1 D2, today')
     expect(todayTitle()).toBe('US W1 D2')
   })
 
-  it('a session pinned ahead wears its day, is not lit, and the light moves to the next floating one', () => {
-    const on = daysFromToday(2)
-    setS({ dayPlan: { [on]: 'd1' } })
+  it('a session pinned ahead leaves the floating next one offered on the today row', () => {
+    setS({ dayPlan: { [daysFromToday(2)]: 'd1' } })
     mount()
-    expect(chipTexts()).toEqual(['US W1 D1' + fmtDate(on, true), 'US W1 D2Up next', 'US W1 D3Later'])
-    expect(chips()[0].className).toBe('chip')
-    // the date keeps .chip's capitals ("Seg." in Portuguese); only the state words opt out
-    expect(chips()[0].querySelector('.qstate')).toBeNull()
-    expect(chips()[1].querySelector('.qstate').textContent).toBe('Up next')
-    expect(chips()[0].disabled).toBe(false)
-    expect(chips()[1].className).toBe('chip on')
-    expect(status()).toBe('Next: US W1 D2, today')
     expect(todayTitle()).toBe('US W1 D2')
   })
 
   it('a session pinned to today is the day\'s session, ahead of the floating order', () => {
     setS({ dayPlan: { [todayISO()]: 'd3' } })
     mount()
-    expect(chipTexts()).toEqual(['US W1 D1Later', 'US W1 D2Later', 'US W1 D3Up next'])
-    expect(chips()[2].className).toBe('chip on')
-    expect(status()).toBe('Next: US W1 D3, today')
     // Home reads any per-date override on today as a reschedule — a pin is one.
     expect(todayTitle()).toBe('US W1 D3 · rescheduled')
   })
 
-  it('every session pinned ahead: no chip is lit, the line names the soonest with its day, today rests', () => {
+  it('every session pinned ahead: nothing floats, so today rests', () => {
     const d1 = daysFromToday(1), d2 = daysFromToday(3), d3 = daysFromToday(2)
     setS({ dayPlan: { [d1]: 'd1', [d2]: 'd2', [d3]: 'd3' } })
     mount()
-    expect(chipTexts()).toEqual(['US W1 D1' + fmtDate(d1, true), 'US W1 D2' + fmtDate(d2, true), 'US W1 D3' + fmtDate(d3, true)])
-    expect(chips().some(c => c.className.includes('on'))).toBe(false)
-    expect(chips().every(c => !c.disabled)).toBe(true)
-    expect(status()).toBe('Next: US W1 D1 · ' + fmtDate(d1, true))
     expect(todayTitle()).toBe('Rest day')
-    // Soonest by date, not first in slot order.
-    act(() => setS({ dayPlan: { [daysFromToday(3)]: 'd1', [daysFromToday(1)]: 'd2', [daysFromToday(2)]: 'd3' } }))
-    expect(status()).toBe('Next: US W1 D2 · ' + fmtDate(daysFromToday(1), true))
-  })
-
-  it('tapping a pinned chip starts that routine alone, today', () => {
-    setS({ dayPlan: { [daysFromToday(2)]: 'd1' } })
-    mount()
-    act(() => { chips()[0].click() })
-    expect(startFlow).toHaveBeenCalledTimes(1)
-    expect(startFlow).toHaveBeenCalledWith(['d1'])
   })
 })
 
@@ -293,12 +220,13 @@ describe('Home — a session pinned to a day', () => {
 describe('Home — the today row follows today\'s plan, not just the last session', () => {
   const today = todayISO()
   const at = (id, start, name) => ({ id: 'w-' + id + start, d: today, start, end: start + 1000, routineIds: id ? [id] : [], routineId: id, name: name || routines.find(r => r.id === id).name, entries: [] })
-  const tag = () => host.querySelector('.today-row .tag')?.textContent
+  // The row's trailing control: the Start pill since the Nothing layout, and the quiet chip
+  // (Resume, Edit, Done) for the days that have already settled.
+  const tag = () => (host.querySelector('.today-row .tag') || host.querySelector('.today-row .btn'))?.textContent
 
-  it('a queue session done today: the row offers the next one, like the progress row', () => {
+  it('a queue session done today: the row offers the next one, like the progress row counts it', () => {
     setS({ workouts: [at('d1', Date.now() - 3600000)] })
     mount()
-    expect(status()).toBe('Next: US W1 D2, today')
     expect(todayTitle()).toBe('US W1 D2')
     expect(tag()).toBe('Start')
   })
@@ -327,8 +255,6 @@ describe('Home — the today row follows today\'s plan, not just the last sessio
       workouts: [at('d1', now - 3600000)],
     })
     mount()
-    expect(chipTexts()).toEqual(['US W1 D1Up next', 'US W1 D2Later', 'US W1 D3Later'])
-    expect(status()).toBe('Next: US W1 D1, today')
     expect(todayTitle()).toBe('US W1 D1')
     expect(tag()).toBe('Start')
   })

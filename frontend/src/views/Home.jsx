@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, Fragment } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { effectiveRoutines, effectiveRoutineIds, nextTrainingDay, lastBW, setsDoneActive } from '../lib/history.js'
@@ -11,11 +11,10 @@ import LineChart from '../components/LineChart.jsx'
 import Icon from '../components/Icon.jsx'
 import CardHead from '../components/CardHead.jsx'
 import QueueRow from '../components/QueueRow.jsx'
-import MiniBodyMap from '../components/MiniBodyMap.jsx'
 import { queueOf, queueView, weekTally, pinState } from '../lib/queue.js'
 import { workoutsLeft } from '../lib/week-left.js'
 import { WeeklySetsHomeLine } from '../components/WeeklySets.jsx'
-import { RecapHomeCard } from '../components/Recap.jsx'
+import { RecapHomeCard, LifeRecapHomeCard } from '../components/Recap.jsx'
 import { scheduleModeOf } from '../lib/rotation.js'
 import { useConnectionTrouble } from '../components/SyncBanner.jsx'
 import { Button } from '../components/ui.jsx'
@@ -29,13 +28,20 @@ import { SeasonDeco } from '../components/Seasonal.jsx'
 import { WrappedHomeCard } from '../components/WrappedEntry.jsx'
 import RecoveryHint from '../components/RecoveryHint.jsx'
 import { ChallengesCard } from '../components/Challenges.jsx'
+import WaterCard from '../components/WaterCard.jsx'
+import HabitsCard from '../components/HabitsCard.jsx'
+import StepsCard from '../components/StepsCard.jsx'
+import SleepCard from '../components/SleepCard.jsx'
+import LevelCard from '../components/LevelCard.jsx'
+import FoodCard from '../components/FoodCard.jsx'
 import { isOn } from '../lib/modules.js'
+import { homeCardsVisible, orderHomeCards } from '../lib/home-order.js'
+import './Home.css'
 
 // Home = what to do now + a quick glance. Deep charts & history live in Stats.
 export default function Home() {
   const nav = useNavigate()
   const S = useStore(s => s.S)
-  const user = useStore(s => s.user)
   // The banner switched off and the sync stuck: a dot on the gear (Settings → Show connection status).
   const trouble = useConnectionTrouble()
   const [weekOffset, setWeekOffset] = useState(0)
@@ -78,7 +84,9 @@ export default function Home() {
     const eff = effectiveRoutineIds(S, iso).length > 0, ovr = S.dayPlan[iso] !== undefined, done = doneDays.has(iso)
     // A day off with a note (#261) reads as excused, not as a plan that went by.
     const dot = done ? ' done' : dayNoteOf(S, iso) ? ' noted' : ovr && eff ? ' ovr' : eff ? ' plan' : ''
-    strip.push(<div key={i} className={'wday' + (iso === todayISO() ? ' today' : '')} {...tappable(() => dayOverrideSheet(iso))}>
+    // The dot's state is a colour alone; say it in the name so it is not only seen.
+    const state = done ? t('Done') : eff ? t('Planned') : t('Rest day')
+    strip.push(<div key={i} className={'wday' + (iso === todayISO() ? ' today' : '')} aria-label={`${t(DAYS[d.getDay()])} ${d.getDate()}, ${state}`} {...tappable(() => dayOverrideSheet(iso))}>
       <div className="lbl">{t(DAYS[d.getDay()])}</div><div className="num">{d.getDate()}</div><div className={'dot' + dot} /></div>)
   }
   const wkEnd = new Date(wkStart); wkEnd.setDate(wkStart.getDate() + 6)
@@ -116,114 +124,40 @@ export default function Home() {
   const on = id => isOn(S, id)
   const bwPoints = S.bodyweight.slice(-30).map(b => ({ t: weighInAt(b), y: b.w, d: b.d }))
 
-  // today's session shown right under the week strip
-  const onToday = () => { if (S.active) nav('/workout'); else if (todayRoutines.length) startFlow(effectiveRoutineIds(S, todayISO())); else dayOverrideSheet(todayISO()) }
-  // A chip on the coach week's progress row starts that one routine, in any order. A session
-  // already in progress wins, as on the today row — starting another would overwrite it.
   const progChip = programmeChip(S)
-  const onQueueStart = id => { if (S.active) nav('/workout'); else startFlow([id]) }
 
-  return <div className="narrow">
-    <div className="hdr">
-      <SeasonDeco spot="header-bats" />
-      <div><h1>{user ? t('Hi {0}', user.name) : 'openGym'}</h1><div className="sub">{today.toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long' })}</div></div>
-      <button className="iconbtn" data-tour="settings-gear" onClick={() => nav('/settings')} aria-label={trouble ? t('Settings') + ', ' + t('Connection problem') : t('Settings')}><Icon name="gear" />{trouble && <span className="tab-dot" aria-hidden="true" />}</button>
-    </div>
-
-    <div className="card">
-      {/* A running programme (lib/programmes.js) wrote this week's plan: where it stands, one tap from its screen. */}
-      {progChip && <button type="button" className="chip ichip prog-chip" onClick={() => nav('/plan/programmes')}><Icon name="calendar" /><span>{progChip}</span></button>}
-      {/* A coach week runs by order, not by weekday, so its progress row stands in for the
-          seven dots (components/QueueRow.jsx). The today row below stays as it is: the queue's
-          next session reaches it through effectiveRoutineIds like any planned routine. */}
-      {rotating ? (queue ? <QueueRow S={S} today={todayISO()} onStart={onQueueStart} managed={managedQueue} /> : <div className="empty">
-        {t('No rotation yet. Add routines to it in Plan.')}
-        <div style={{ marginTop: 10 }}><Button size="sm" variant="tinted" onClick={() => nav('/plan')}>{t('Set up in Plan')}</Button></div>
-      </div>) : <>
-        <div className="row between" style={{ marginBottom: 8 }}>
-          <button className="iconbtn" style={{ width: 30, height: 30, fontSize: 'var(--fs-subhead)' }} onClick={() => setWeekOffset(w => w - 1)} aria-label={t('Previous week')}><Icon name="chevronLeft" /></button>
-          <div className="small muted" style={{ fontWeight: 500 }}>{wkLabel}</div>
-          <button className="iconbtn" style={{ width: 30, height: 30, fontSize: 'var(--fs-subhead)' }} onClick={() => setWeekOffset(w => w + 1)} aria-label={t('Next week')}><Icon name="chevronRight" /></button>
-        </div>
-        <div className="week">{strip}</div>
-      </>}
-      {/* The week's plan as a countdown (#753, lib/week-left.js): "2 of 4 left this week". */}
-      {left && <div className={'small dim wkleft' + (left.left > 0 ? '' : ' done')}>
-        {left.left > 0 ? tn('{0} of {1} left this week', '{0} of {1} left this week', left.left, left.of) : t('All done this week. Nice.')}
-      </div>}
-      {/* Once today's session is logged the row stops asking for it. The week strip already
-          knew (its dot goes 'done'); this row did not, so a finished day kept showing the
-          routine name behind a green Start tag and read as still outstanding (issue #4).
-          An in-progress session still wins — that one is happening right now. Tapping the
-          row keeps working, so a second session in one day is a tap away, just not urged. */}
-      <div className="today-row" data-tour="today" {...tappable(onToday)}>
-        <div className="row" style={{ gap: 9, minWidth: 0 }}>
-          <span className="lrow-i" style={{ background: S.active ? 'var(--orange)' : doneToday ? 'var(--surface-3)' : routine ? 'var(--acc)' : 'var(--surface-3)',
-            // the rest day's moon on the grey square: white on #e3e3e8 vanished in the light theme
-            ...(!S.active && !doneToday && !routine ? { color: 'var(--label-2)' } : {}) }}>
-            <Icon name={S.active ? (editingSaved ? 'pencil' : 'play') : doneToday ? 'checkCircle' : routine ? glyphOf(routine.emoji) : 'moon'}
-              style={doneToday && !S.active ? { color: 'var(--green)' } : undefined} />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="lbl2">{t('Today')}</div>
-            <div className="ttl">{S.active ? (editingSaved ? S.active.name : t('{0} (in progress)', S.active.name))
-              : doneToday ? (doneToday.name ? t('{0} (done)', doneToday.name) : t('Workout done'))
-              : routine ? todayName : t('Rest day')}{todayOvr && routine && !doneToday ? ' · ' + t('rescheduled') : ''}</div>
-            {next && !doneToday && <div className="ss">{t('Next session: {0}, {1}', t(DAYN[next.weekday]), next.routine.name)}</div>}
-          </div>
-        </div>
-        {S.active ? <span className="tag" style={{ color: 'var(--orange)', background: 'color-mix(in srgb,var(--orange) 16%,transparent)' }}>{editingSaved ? t('Edit') : t('Resume')}</span>
-          : doneToday ? <span className="tag" style={{ color: 'var(--green)', background: 'color-mix(in srgb,var(--green) 16%,transparent)' }}>{t('Done')}</span>
-          : routine ? <span className="row" style={{ gap: 8 }}><MiniBodyMap routines={todayRoutines} body={S.body} /><span className="tag acc">{t('Start')}</span></span>
-          : <Icon name="plus" className="chev" />}
-      </div>
-      {/* The row above starts today's plan in one tap, and so does the Start button in the tab
-          bar — which is the whole problem when you want something else. Both jump straight into
-          the planned session whenever there is one, so the Start screen (a freestyle session,
-          and your other routines) is only reachable on a day with nothing planned. The one other
-          way in, "Choose a different workout" on the weigh-in sheet, does not exist when the
-          weigh-in is switched off. This is that door, and it starts nothing on its own. */}
-      {!S.active && <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
-        <Button size="sm" variant="ghost" className="dim" icon="swap" onClick={() => nav('/workout')}>
-          {t('Choose a different workout')}
-        </Button>
-      </div>}
-      <SeasonDeco spot="home-hero" />
-    </div>
-
-    {/* Monday: Your week; the 1st: Your month (lib/recap.js). Off in Settings → Look & Home. */}
-    <RecapHomeCard S={S} />
-
-    {/* Christmas (lib/seasonal.js): the advent calendar's card, 1 to 24 December, from the theme's chunk. */}
-    <SeasonDeco spot="home-advent" />
-
-    {/* December and January: the year in openGym is ready (lib/wrapped.js homeCardYear). */}
-    {on('motivation') && <WrappedHomeCard S={S} />}
-
-    {/* What has rested and what is still recovering, kindly (lib/recovery-hint.js). */}
-    {on('health') && <RecoveryHint S={S} />}
-
-    {/* This month's three challenges and how far you are (lib/challenges.js). */}
-    <ChallengesCard S={S} />
-
-    {/* Jump to the gym check-in cards (QR membership codes). Shown here as a quick tap on
-        arrival at the gym; folds away per user via the "Gym check-in" switch in Settings. */}
-    {on('checkin') && (
-      <div className="card tap-host checkin-card">
-        <CardHead icon="qr" tint="var(--blue)" eyebrow={t('At the gym')} title={t('Check in')} open={{ onClick: () => nav('/checkin') }}
-          action={<Icon name="chevronRight" className="chev" />} />
-      </div>
-    )}
-
-    {!S.routines.length && !S.active && (
-      <div className="card">
-        <CardHead icon="calendar" title={t('Welcome!')} sub={t('Set up your weekly routine to get going, or grab a ready-made starter plan.')} />
-        <Button variant="primary" icon="clipboard" onClick={starterPlanSheet}>{t('Load starter plan')}</Button>
-        <div style={{ height: 8 }} /><Button onClick={() => nav('/plan')}>{t('Build my own plan')}</Button>
-      </div>
-    )}
-
-    {on('body') && S.showWeightCard !== false && <div className="card">
+  // The cards under the hero, in the order the user set (Settings → Modules → Card order,
+  // lib/home-order.js). The gates that decide which of these are on now live in that lib, so
+  // Home and the order editor can never disagree. Each node keeps the comment of the block it
+  // was lifted out of. The hero and the Welcome card are not orderable: one is what to do now,
+  // the other an empty state, not a module's surface.
+  const cardNodes = {
+    // Levels (lib/xp.js): right after the hero by default, taking the streak card's seat while it is on.
+    level: <LevelCard />,
+    // Monday: Your week; the 1st: Your month (lib/recap.js). Off in Settings → Look & Home.
+    // The life recap banner rides in the same seat.
+    recap: <><RecapHomeCard S={S} /><LifeRecapHomeCard S={S} /></>,
+    // Christmas (lib/seasonal.js): the advent calendar's card, 1 to 24 December, from the theme's chunk.
+    seasonal: <SeasonDeco spot="home-advent" />,
+    // December and January: the year in JelloGym is ready (lib/wrapped.js homeCardYear).
+    wrapped: <WrappedHomeCard S={S} />,
+    // What has rested and what is still recovering, kindly (lib/recovery-hint.js).
+    recovery: <RecoveryHint S={S} />,
+    // This month's three challenges and how far you are (lib/challenges.js).
+    challenges: <ChallengesCard S={S} />,
+    // Jump to the gym check-in cards (QR membership codes). Shown here as a quick tap on
+    // arrival at the gym; folds away per user via the "Gym check-in" switch in Settings.
+    checkin: <div className="card tap-host checkin-card">
+      <CardHead icon="qr" tint="var(--blue)" eyebrow={t('At the gym')} title={t('Check in')} open={{ onClick: () => nav('/checkin') }}
+        action={<Icon name="chevronRight" className="chev" />} />
+    </div>,
+    // Water (lib/water.js), off until asked in Settings → Modules.
+    water: <WaterCard />,
+    habits: <HabitsCard />,
+    steps: <StepsCard />,
+    sleep: <SleepCard />,
+    food: <FoodCard />,
+    body: <div className="card">
       {/* one trailing action, Log; the goal lives with the goal line and the weigh-ins below (P2) */}
       <CardHead icon="scale" tint="var(--teal)" title={t('Body weight')} className="bw-head"
         action={<Button size="sm" icon="plus" onClick={() => bwSheet()}>{t('Log')}</Button>} />
@@ -259,11 +193,12 @@ export default function Home() {
           : t("No weigh-ins yet. Log your weight to start the curve (we also ask before every workout).")}</div>
         <Button size="sm" variant="ghost" icon="target" className="bw-goal" style={{ marginTop: 6, ...(S.targetW ? { color: 'var(--gold-ink)' } : {}) }} onClick={goalSheet}>{S.targetW ? fmtNum(S.targetW) : t('Goal')}</Button>
       </>}
-    </div>}
-
-    {/* The streak opens its calendar from its text (CardHead open); the weekly-sets line and the
-        party banner are buttons of their own beside it, not inside a card that is a button. */}
-    {on('motivation') ? <div className="card tap-host streak-card">
+    </div>,
+    // The streak opens its calendar from its text (CardHead open); the weekly-sets line and the
+    // party banner are buttons of their own beside it, not inside a card that is a button.
+    // With Motivation off there is no streak card, but the weekly sets line it carried keeps a
+    // card of its own (the same seat in the order either way).
+    streak: on('motivation') && !on('levels') ? <div className="card tap-host streak-card">
       <SeasonDeco spot="home-streak" />
       {/* in season, a Santa hat on the flame (components/Seasonal.jsx) */}
       <CardHead className="streak-head" glyph={<span className="streak-flame-wrap"><StreakFlame lit={streak.current > 0} /><SeasonDeco spot="streak-flame" /></span>}
@@ -277,7 +212,76 @@ export default function Home() {
       {/* Straight to Stats → Lifts, where the card is, not to the top of Overview (P5 deep link). */}
       {S.homeMuscleSets === true && <WeeklySetsHomeLine S={S} onOpen={() => nav('/stats?section=lifts')} />}
     </div>
-      // Motivation off: no streak card, but the weekly sets line it carried keeps a card of its own.
-      : S.homeMuscleSets === true && <div className="card wsets-solo"><WeeklySetsHomeLine S={S} onOpen={() => nav('/stats?section=lifts')} /></div>}
+      : <div className="card wsets-solo"><WeeklySetsHomeLine S={S} onOpen={() => nav('/stats?section=lifts')} /></div>,
+  }
+
+  return <div className="narrow home-nothing">
+    <div className="hdr">
+      <div><h1>JelloGym</h1><div className="sub">{today.toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long' })}</div></div>
+      <button type="button" className="iconbtn" data-tour="settings-gear" onClick={() => nav('/settings')} aria-label={trouble ? t('Settings') + ', ' + t('Connection problem') : t('Settings')}>
+        <Icon name="gear" />{trouble && <span className="tab-dot" aria-hidden="true" />}
+      </button>
+    </div>
+
+    <div className="card">
+      {/* A running programme (lib/programmes.js) wrote this week's plan: where it stands, one tap from its screen. */}
+      {progChip && <button type="button" className="chip ichip prog-chip" onClick={() => nav('/plan/programmes')}><Icon name="calendar" /><span>{progChip}</span></button>}
+      {/* A coach week runs by order, not by weekday, so its progress row stands in for the
+          seven dots (components/QueueRow.jsx). The today row below stays as it is: the queue's
+          next session reaches it through effectiveRoutineIds like any planned routine. */}
+      {rotating ? (queue ? <QueueRow S={S} today={todayISO()} managed={managedQueue} /> : <div className="empty">
+        {t('No rotation yet. Add routines to it in Plan.')}
+        <div style={{ marginTop: 10 }}><Button size="sm" variant="tinted" onClick={() => nav('/plan')}>{t('Set up in Plan')}</Button></div>
+      </div>) : <>
+        <div className="row between" style={{ marginBottom: 8 }}>
+          <button type="button" className="wk-nav" onClick={() => setWeekOffset(w => w - 1)} aria-label={t('Previous week')}>‹</button>
+          <div className="small muted" style={{ fontWeight: 500 }}>{wkLabel}</div>
+          <button type="button" className="wk-nav" onClick={() => setWeekOffset(w => w + 1)} aria-label={t('Next week')}>›</button>
+        </div>
+        <div className="week">{strip}</div>
+      </>}
+      {/* The week's plan as a countdown (#753, lib/week-left.js): "2 of 4 left this week". */}
+      {left && <div className={'small dim wkleft' + (left.left > 0 ? '' : ' done')}>
+        {left.left > 0 ? tn('{0} of {1} left this week', '{0} of {1} left this week', left.left, left.of) : t('All done this week. Nice.')}
+      </div>}
+      {/* The day in one row (Nothing layout): the block on the left opens that day's plan, exactly
+          like the strip's dots do, and the pill starts what is planned. A running session still
+          wins over both — that one is happening right now, so the block takes you back into it and
+          the trailing chip reads Resume or Edit. Once today's session is logged the row stops
+          asking for it: the week strip already knew (its dot goes 'done'), and a finished day used
+          to keep showing the routine name behind a Start and read as still outstanding (issue #4).
+          A second session in a day is started from the tab bar's Actions hub or from Plan. */}
+      <div className="today-row tap-host" data-tour="today">
+        <button type="button" className="today-main tap-main" aria-haspopup="dialog"
+          onClick={() => (S.active ? nav('/workout') : dayOverrideSheet(todayISO()))}>
+          <span className="lrow-i">
+            <Icon name={S.active ? (editingSaved ? 'pencil' : 'play') : doneToday ? 'checkCircle' : routine ? glyphOf(routine.emoji) : 'moon'} />
+          </span>
+          <span className="today-txt">
+            <span className="lbl2">{t('Today')}</span>
+            <span className="ttl">{S.active ? (editingSaved ? S.active.name : t('{0} (in progress)', S.active.name))
+              : doneToday ? (doneToday.name ? t('{0} (done)', doneToday.name) : t('Workout done'))
+              : routine ? todayName : t('Rest day')}{todayOvr && routine && !doneToday ? ' · ' + t('rescheduled') : ''}</span>
+            {next && !doneToday && <span className="ss">{t('Next session: {0}, {1}', t(DAYN[next.weekday]), next.routine.name)}</span>}
+          </span>
+        </button>
+        {S.active ? <span className="tag" style={{ color: 'var(--orange)', background: 'color-mix(in srgb,var(--orange) 16%,transparent)' }}>{editingSaved ? t('Edit') : t('Resume')}</span>
+          : doneToday ? <span className="tag" style={{ color: 'var(--green)', background: 'color-mix(in srgb,var(--green) 16%,transparent)' }}>{t('Done')}</span>
+          : routine ? <Button variant="primary" onClick={() => startFlow(effectiveRoutineIds(S, todayISO()))}>{t('Start')}</Button>
+          : <Icon name="plus" className="chev" />}
+      </div>
+      <SeasonDeco spot="home-hero" />
+    </div>
+
+    {/* The new profile's first card, pinned ahead of the ordered stack: what to do first. */}
+    {!S.routines.length && !S.active && (
+      <div className="card">
+        <CardHead icon="calendar" title={t('Welcome!')} sub={t('Set up your weekly routine to get going, or grab a ready-made starter plan.')} />
+        <Button variant="primary" onClick={starterPlanSheet}>{t('Load starter plan')}</Button>
+        <div style={{ height: 8 }} /><Button onClick={() => nav('/plan')}>{t('Build my own plan')}</Button>
+      </div>
+    )}
+
+    {orderHomeCards(homeCardsVisible(S), S.homeOrder).map(id => <Fragment key={id}>{cardNodes[id]}</Fragment>)}
   </div>
 }

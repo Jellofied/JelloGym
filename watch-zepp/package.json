@@ -1,8 +1,8 @@
 {
-  "name": "opengym-zepp",
+  "name": "jellogym-zepp",
   "version": "1.4.4",
   "private": true,
-  "description": "openGym for Zepp OS (Amazfit) watches",
+  "description": "JelloGym for Zepp OS (Amazfit) watches",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {

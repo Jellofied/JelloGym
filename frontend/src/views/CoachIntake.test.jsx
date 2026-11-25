@@ -271,7 +271,7 @@ describe('CoachIntake — the consent screen', () => {
     await setLang('de')
     try {
       mount()
-      expect(all('.ob-consent-row').map(r => [r.querySelector('b').textContent, r.querySelector('span').textContent]))
+      expect(all('.ob-consent-row').map(r => [r.querySelector('b').textContent, r.querySelector('b + span').textContent]))
         .toEqual(english.map(([title, sub]) => [de[title], de[sub]]))
     } finally { await setLang('en') }
   })

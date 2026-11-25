@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-// The tab you are on, tapped again: to the top of its page (lib/scroll-top.js), and from the top of
-// Exercises into its search field. A tap on another tab still just switches.
+// The tab you are on, tapped again: to the top of its page (lib/scroll-top.js). A tap on another
+// tab still just switches — and from a page that lives under a tab (the library under Plan), it
+// goes to the tab's own page, the way it always did for History under Stats.
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
@@ -30,7 +31,7 @@ beforeEach(() => {
   page.innerHTML = '<div class="page"><div class="search"><input class="input"></div></div>'
   document.body.appendChild(page)
   host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host)
-  router = createMemoryRouter([{ path: '*', element: <TabBar onStart={vi.fn()} /> }], { initialEntries: ['/library'] })
+  router = createMemoryRouter([{ path: '*', element: <TabBar onStart={vi.fn()} /> }], { initialEntries: ['/plan'] })
   act(() => root.render(<RouterProvider router={router} />))
 })
 afterEach(() => {
@@ -42,8 +43,8 @@ afterEach(() => {
 })
 
 describe('tapping the tab you are on', () => {
-  it.each(['Home', 'Plan', 'Stats', 'Exercises'])('%s scrolls its page to the top, smoothly', async label => {
-    const path = { Home: '/home', Plan: '/plan', Stats: '/stats', Exercises: '/library' }[label]
+  it.each(['Home', 'Workout', 'Stats'])('%s scrolls its page to the top, smoothly', async label => {
+    const path = { Home: '/home', Workout: '/plan', Stats: '/stats' }[label]
     await act(async () => router.navigate(path))
     const key = router.state.location.key
     at(3000)
@@ -55,19 +56,20 @@ describe('tapping the tab you are on', () => {
   it('jumps with Reduce Motion on', async () => {
     reduce = true
     at(3000)
-    await tap('Exercises')
+    await tap('Workout')
     expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: 'auto' })
   })
 
-  it('at the top of Exercises already, goes to the search field', async () => {
-    await tap('Exercises')
+  it('from the library page, the Workout tab goes to the plan itself', async () => {
+    await act(async () => router.navigate('/library'))
+    await tap('Workout')
+    expect(router.state.location.pathname).toBe('/plan')
     expect(window.scrollTo).not.toHaveBeenCalled()
-    expect(document.activeElement).toBe(page.querySelector('.search input'))
   })
 
   it('at the top of another tab does nothing', async () => {
     await act(async () => router.navigate('/plan'))
-    await tap('Plan')
+    await tap('Workout')
     expect(window.scrollTo).not.toHaveBeenCalled()
     expect(document.activeElement).not.toBe(page.querySelector('.search input'))
   })
@@ -75,7 +77,7 @@ describe('tapping the tab you are on', () => {
   it('leaves the page alone under an open sheet', async () => {
     at(3000)
     document.body.style.position = 'fixed'
-    await tap('Exercises')
+    await tap('Workout')
     expect(window.scrollTo).not.toHaveBeenCalled()
   })
 })

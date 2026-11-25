@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { normalizeMediaRef, referencedHashes, referencedFiles, cleanUrl, linkKind, mediaOf, fmtClip, HASH_RE } from './media-refs.js'
+import { normalizeMediaRef, referencedHashes, referencedFiles, cleanUrl, linkKind, mediaOf, HASH_RE } from './media-refs.js'
 
 const A = 'a'.repeat(64)
 const B = 'b'.repeat(64)
@@ -154,11 +154,6 @@ describe('linkKind', () => {
 })
 
 describe('small helpers', () => {
-  it('writes a clip length as m:ss', () => {
-    expect(fmtClip(7)).toBe('0:07')
-    expect(fmtClip(65.4)).toBe('1:05')
-    expect(fmtClip(undefined)).toBe('0:00')
-  })
   it('matches only lowercase sha256 hex', () => {
     expect(HASH_RE.test(A)).toBe(true)
     expect(HASH_RE.test(A.toUpperCase())).toBe(false)

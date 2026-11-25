@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // The iPhone widgets' snapshot (lib/widgets.js): what the page hands the widget extension through
-// the App Group. The shape is what ios/App/OpenGymWidgets/WidgetSnapshot.swift decodes, so a field
+// the App Group. The shape is what ios/App/JelloGymWidgets/WidgetSnapshot.swift decodes, so a field
 // renamed here is a widget gone blank there. Text only, nothing from the exercise media.
 const h = vi.hoisted(() => { vi.stubEnv('VITE_MOBILE', '1'); return { platform: 'ios' } })
 vi.mock('./mobile.js', () => ({ MOBILE: true, nativePlatform: async () => h.platform }))
@@ -136,6 +136,32 @@ describe('buildWidgetSnapshot: the configurable widget\'s blocks', () => {
     for (const k of ['weightGoal', 'nextWorkout', 'records', 'volume', 'freezes', 'nothingPlanned', 'noWeighIn', 'startNow']) {
       expect(typeof snap.labels[k], k).toBe('string')
     }
+  })
+})
+
+describe('buildWidgetSnapshot: the Android water widget', () => {
+  const on = over => S({ modules: { water: true }, ...over })
+  const drink = (d, ml) => ({ ['w' + ml + d]: { d, ml, _ts: 1 } })
+
+  it('carries today\'s total, the goal, the ring fraction and the cup sizes', () => {
+    const water = { ...drink(TODAY, 250), ...drink(TODAY, 500), ...drink('2026-10-13', 750) }
+    const snap = buildWidgetSnapshot(on({ water, waterGoal: 2000 }), { today: TODAY })
+    expect(snap.water).toMatchObject({ d: TODAY, ml: 750, goal: 2000, pct: 0.375, mlText: '750 ml', line: '1250 ml to go' })
+    expect(snap.water.cups).toEqual([250, 500, 750])
+    expect(JSON.parse(JSON.stringify(snap))).toEqual(snap)
+  })
+
+  it('writes litres and the reached line, and uses the bodyweight suggestion', () => {
+    const snap = buildWidgetSnapshot(on({ water: drink(TODAY, 1500), bodyweight: [{ d: TODAY, w: 80 }] }), { today: TODAY })
+    expect(snap.water).toMatchObject({ ml: 1500, goal: 2650, mlText: '1.5 L', line: '1150 ml to go' })
+    const done = buildWidgetSnapshot(on({ water: drink(TODAY, 2000), waterGoal: 2000 }), { today: TODAY })
+    expect(done.water).toMatchObject({ pct: 1, line: 'Goal reached' })
+  })
+
+  it('hides the block when Water is off, and survives a thin state', () => {
+    expect(buildWidgetSnapshot(S({ water: drink(TODAY, 250) }), { today: TODAY }).water).toBeNull()
+    expect(buildWidgetSnapshot(on(), { today: TODAY }).water).toMatchObject({ ml: 0, pct: 0 })
+    expect(buildWidgetSnapshot(on({ modules: { water: false } }), { today: TODAY }).water).toBeNull()
   })
 })
 

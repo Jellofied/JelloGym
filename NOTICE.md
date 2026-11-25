@@ -159,6 +159,6 @@ Video frames are decoded in memory and never uploaded or stored.
 In the Android/iOS app, reading a code — from the camera or from an imported photo — uses the
 [**@capacitor-mlkit/barcode-scanning**](https://github.com/capawesome-team/capacitor-mlkit) plugin
 by the Capawesome Team (Robin Genz), a Capacitor wrapper around Google's ML Kit, used under the
-**Apache License 2.0**. openGym pins the `7.x` line to stay on Capacitor 7. The full license text is
+**Apache License 2.0**. The app pins the `8.x` line to stay on Capacitor 8. The full license text is
 available at <https://www.apache.org/licenses/LICENSE-2.0> and in the package's own `LICENSE` file.
 The decoded string is what openGym keeps; the photo itself is never stored.

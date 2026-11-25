@@ -38,7 +38,6 @@ export const THEMES = [
     appIcon: 'christmas', appIconTitle: 'Try the Christmas app icon',
   },
 ]
-export const THEME_IDS = THEMES.map(th => th.id)
 export const CHOICES = ['auto', 'on', 'off']
 const byId = id => THEMES.find(th => th.id === id) || null
 

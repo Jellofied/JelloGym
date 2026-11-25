@@ -213,29 +213,29 @@ final class SettingsAndWeighInTests: XCTestCase {
     }
 }
 
-/// Workouts deleted in openGym: the watch takes its own copies out of Apple Health, once.
+/// Workouts deleted in JelloGym: the watch takes its own copies out of Apple Health, once.
 final class HealthDeleteTests: XCTestCase {
     func testOnlyWorkoutIdsNotDoneYetOnceEach() {
-        let todo = SessionCore.healthToDelete(gone: ["opengym-w-a", "opengym-bw-2026-10-01", "opengym-w-b", "opengym-w-a"], done: ["opengym-w-b"])
-        XCTAssertEqual(todo, ["opengym-w-a"])
+        let todo = SessionCore.healthToDelete(gone: ["jellogym-w-a", "jellogym-bw-2026-10-01", "jellogym-w-b", "jellogym-w-a"], done: ["jellogym-w-b"])
+        XCTAssertEqual(todo, ["jellogym-w-a"])
         XCTAssertEqual(SessionCore.healthToDelete(gone: nil, done: []), [])
     }
 
     func testDoneIsKeptBoundedAndANewRoundIsANoOp() {
         var done: [String] = []
-        done = SessionCore.healthDeleted(done, adding: ["opengym-w-a"])
-        done = SessionCore.healthDeleted(done, adding: ["opengym-w-a"])
-        XCTAssertEqual(done, ["opengym-w-a"])
-        XCTAssertEqual(SessionCore.healthToDelete(gone: ["opengym-w-a"], done: done), [])
-        let many = (0..<400).map { "opengym-w-\($0)" }
+        done = SessionCore.healthDeleted(done, adding: ["jellogym-w-a"])
+        done = SessionCore.healthDeleted(done, adding: ["jellogym-w-a"])
+        XCTAssertEqual(done, ["jellogym-w-a"])
+        XCTAssertEqual(SessionCore.healthToDelete(gone: ["jellogym-w-a"], done: done), [])
+        let many = (0..<400).map { "jellogym-w-\($0)" }
         XCTAssertEqual(SessionCore.healthDeleted([], adding: many).count, 300)
-        let ev = SessionCore.healthDeletedEvent(["opengym-w-a"], id: "e")
+        let ev = SessionCore.healthDeletedEvent(["jellogym-w-a"], id: "e")
         XCTAssertEqual(ev?["type"] as? String, "healthDeleted")
         XCTAssertNil(SessionCore.healthDeletedEvent([], id: "e"))
     }
 
     func testASnapshotWithTheListReads() throws {
-        let snap = try JSONDecoder().decode(Snapshot.self, from: Data(#"{"v":1,"healthGone":["opengym-w-x"]}"#.utf8))
-        XCTAssertEqual(snap.healthGone, ["opengym-w-x"])
+        let snap = try JSONDecoder().decode(Snapshot.self, from: Data(#"{"v":1,"healthGone":["jellogym-w-x"]}"#.utf8))
+        XCTAssertEqual(snap.healthGone, ["jellogym-w-x"])
     }
 }

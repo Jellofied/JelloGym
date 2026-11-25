@@ -4,14 +4,32 @@
 //
 // Write-only, and only on request: the user turns it on in Settings, on each phone. Every record
 // carries a client id of its own (a workout's id, a weigh-in's day), so writing it again replaces
-// it instead of adding a second one, and anything openGym wrote can be found and removed again.
+// it instead of adding a second one, and anything JelloGym wrote can be found and removed again.
 import { workoutText } from './workout-text.js'
 import { modeForEntry, hasCompletedWork } from './workout-model.js'
 import { isoOf } from './format.js'
 import { readingsOf, readingAt, cleanTime } from './weigh-ins.js'
 import { EXIDX } from './exercises.js'
+import { isOn } from './modules.js'
+import { LB_PER_KG } from './units.js'
 
-const LB_PER_KG = 2.2046226218
+const isMap = v => !!v && typeof v === 'object' && !Array.isArray(v)
+
+/* The client ids this app gives its records, and the one the build before the rename to JelloGym
+   gave them. Both spellings are ours: a record already in the hub under the old name is not
+   written twice, and a removal names both so whichever one went in comes out (health-read.js
+   recognises both too, so the old writes are never read back as another app's data). */
+export const ID_PREFIXES = ['jellogym-', 'opengym-']
+
+/** One record's id under every prefix this app has written with: ['jellogym-w-1', 'opengym-w-1']. */
+export function ownIds(id) {
+  const s = String(id)
+  const hit = ID_PREFIXES.find(p => s.startsWith(p))
+  if (!hit) return [s]
+  const rest = s.slice(hit.length)
+  return ID_PREFIXES.map(p => p + rest)
+}
+
 // Health Connect refuses a title or notes over 1000 characters (ExerciseSessionRecord).
 export const TEXT_MAX = 1000
 
@@ -108,7 +126,7 @@ export function sessionRecord(w, { unit, nameOf, speedUnit }) {
   const start = Number(w?.start), end = Number(w?.end)
   if (!w?.id || !(start > 0) || !(end > start)) return null
   return {
-    id: 'opengym-w-' + w.id,
+    id: 'jellogym-w-' + w.id,
     start, end,
     type: sessionType(w),
     title: clip(String(w.name || '').trim()),
@@ -134,8 +152,25 @@ export function weightRecord(b, unit, r = null) {
   return { id: weightRecordId(b.d, r?.id), time, kg: Math.round(kg * 1000) / 1000 }
 }
 
-/** The hub's id of one weigh-in openGym wrote: its day, and its reading unless that is '0'. */
-export const weightRecordId = (d, rid) => 'opengym-bw-' + d + (rid != null && String(rid) !== '0' ? '-' + rid : '')
+/**
+ * The hub's id of one weigh-in JelloGym wrote: its day, and its reading unless that is '0'.
+ */
+export const weightRecordId = (d, rid) => 'jellogym-bw-' + d + (rid != null && String(rid) !== '0' ? '-' + rid : '')
+
+/**
+ * One hydration record per logged drink (Water, docs/LIFE_MODULES.md): write-only, never read
+ * back. The client id is the entry's own, so an edit rewrites it in place and a removal finds it
+ * again; the time is the entry's stamp, the only time a drink carries. `S` without a live entry —
+ * removed or junk — gives nothing, and goneIds takes the written record out with it.
+ */
+export const hydrationRecordId = id => 'jellogym-hy-' + id
+
+export function hydrationRecord(id, e) {
+  const ml = Math.round(Number(e?.ml))
+  const time = Number(e?._ts)
+  if (!id || !/^\d{4}-\d{2}-\d{2}$/.test(String(e?.d || '')) || !(ml > 0) || !(time > 0)) return null
+  return { id: hydrationRecordId(String(id)), time, ml }
+}
 
 function localMorning(iso) {
   const [y, m, d] = String(iso).split('-').map(Number)
@@ -143,7 +178,7 @@ function localMorning(iso) {
   return new Date(y, m - 1, d, 8, 0, 0, 0).getTime()
 }
 
-/** Everything the state has to give Health Connect: { sessions, weights }. */
+/** Everything the state has to give Health Connect: { sessions, weights, hydration }. */
 export function healthRecords(S, { nameOf, speedUnit }) {
   const unit = S?.unit === 'lb' ? 'lb' : 'kg'
   return {
@@ -153,6 +188,11 @@ export function healthRecords(S, { nameOf, speedUnit }) {
     weights: (S?.bodyweight || []).flatMap(b => (Array.isArray(b?.ins)
       ? readingsOf(b).filter(r => !r.src).map(r => weightRecord(b, unit, r))
       : b?.src ? [] : [weightRecord(b, unit)])).filter(Boolean),
+    // Water off on this profile (Settings → Modules) pauses its writes: nothing is removed, the
+    // records already written stay the user's, and switching back on catches up (same rule as Health off).
+    hydration: isOn(S, 'water')
+      ? Object.entries(isMap(S?.water) ? S.water : {}).map(([id, e]) => hydrationRecord(id, e)).filter(Boolean)
+      : [],
   }
 }
 
@@ -174,72 +214,105 @@ export function recordKey(rec) {
 }
 
 /**
- * The record ids openGym has on record as deleted: a workout or a weigh-in day removed on this
+ * The record ids JelloGym has on record as deleted: a workout or a weigh-in day removed on this
  * device or on another one whose removal synced in (S.deleted, lib/sync-merge.js stampDeletions;
  * a negative stamp is an add-back), and everything a "Reset everything" wiped (S.resetIds).
  * Only these are taken out of Health: a copy that merely lacks a workout (signed out, a guest
  * copy, a state not loaded yet) never empties Apple Health or Health Connect.
+ *
+ * Every id goes in under both of its spellings (ownIds): the record in the hub carries whichever
+ * prefix the build that wrote it used, and a removal that only named the new one would leave the
+ * old copy sitting there with no way back.
  */
 export function goneIds(S) {
   const out = new Set()
+  const add = id => { for (const t of ownIds(id)) out.add(t) }
   const del = S?.deleted && typeof S.deleted === 'object' ? S.deleted : {}
-  for (const [k, at] of Object.entries(del.workouts || {})) if (Number(at) > 0) out.add('opengym-w-' + k)
+  for (const [k, at] of Object.entries(del.workouts || {})) if (Number(at) > 0) add('jellogym-w-' + k)
   // A removed day takes all its weigh-ins with it (planSync matches the `*`); one weigh-in
   // removed from a day that keeps others is on record in that day's `gone`.
-  for (const [k, at] of Object.entries(del.bodyweight || {})) if (Number(at) > 0) { out.add('opengym-bw-' + k); out.add('opengym-bw-' + k + '-*') }
+  for (const [k, at] of Object.entries(del.bodyweight || {})) if (Number(at) > 0) { add('jellogym-bw-' + k); add('jellogym-bw-' + k + '-*') }
   for (const b of S?.bodyweight || []) {
     if (!b?.d || !b.gone || typeof b.gone !== 'object') continue
-    for (const [rid, at] of Object.entries(b.gone)) if (Number(at) > 0) out.add(weightRecordId(b.d, rid))
+    for (const [rid, at] of Object.entries(b.gone)) if (Number(at) > 0) add(weightRecordId(b.d, rid))
   }
+  // A removed drink is the tombstone it left in the water map: an entry with no amount.
+  const waters = isMap(S?.water) ? S.water : {}
+  for (const [id, e] of Object.entries(waters)) if (isMap(e) && !(Number(e?.ml) > 0) && Number(e?._ts) > 0) add(hydrationRecordId(id))
   const reset = S?.resetIds && typeof S.resetIds === 'object' ? S.resetIds : {}
-  for (const k of Array.isArray(reset.workouts) ? reset.workouts : []) out.add('opengym-w-' + k)
+  for (const k of Array.isArray(reset.workouts) ? reset.workouts : []) add('jellogym-w-' + k)
   // A weigh-in is named by its day and time there ("2026-09-17|1758…"); Health knows it by day.
-  for (const k of Array.isArray(reset.bodyweight) ? reset.bodyweight : []) { const d = String(k).split('|')[0]; out.add('opengym-bw-' + d); out.add('opengym-bw-' + d + '-*') }
+  for (const k of Array.isArray(reset.bodyweight) ? reset.bodyweight : []) { const d = String(k).split('|')[0]; add('jellogym-bw-' + d); add('jellogym-bw-' + d + '-*') }
+  for (const k of Array.isArray(reset.water) ? reset.water : []) add(hydrationRecordId(String(k)))
   return out
 }
 
 /**
  * What a sync has to do, given the records now and `written`, what this phone wrote before
  * ({ [id]: { k: 'session' | 'weight', h: recordKey } }). New and changed records are written,
- * records that are gone from openGym (a deleted workout, a removed weigh-in) are removed.
+ * records that are gone from JelloGym (a deleted workout, a removed weigh-in) are removed.
  * With `gone` (goneIds), only a record on record as deleted is removed; one that is merely
  * missing stays written, and goes once its deletion arrives. Returns { sessions, weights,
  * remove: { sessions: [id], weights: [id] }, written } — `written` being what the phone has
  * written once the sync went through.
  */
-export function planSync({ sessions, weights }, written = {}, gone = null) {
+export function planSync({ sessions, weights, hydration = [] }, written = {}, gone = null) {
   const next = {}
-  const out = { sessions: [], weights: [], remove: { sessions: [], weights: [] } }
-  const take = (list, k, into) => {
+  const out = { sessions: [], weights: [], hydration: [], remove: { sessions: [], weights: [], hydration: [] } }
+  const moved = new Set()      // old-prefix ids this pass takes out, because their new twin goes in
+  const into = (k, rec) => k === 'session' ? out.sessions : k === 'weight' ? out.weights : out.hydration
+  const remove = (k, id) => {
+    if (k === 'session') out.remove.sessions.push(id)
+    else if (k === 'weight') out.remove.weights.push(id)
+    else if (k === 'hydration') out.remove.hydration.push(id)
+    moved.add(id)
+  }
+  const take = (list, k) => {
     for (const rec of list) {
       if (next[rec.id]) continue   // two workouts with one id: the first is the one written
       const h = recordKey(rec)
+      if (written[rec.id]?.h === h) { next[rec.id] = { k, h }; continue }
+      // The same content may already be in the hub under the prefix the previous build wrote
+      // with. Then it is not written twice: the phone keeps that id as the one it wrote, and a
+      // later removal names both spellings so the record is found wherever it went in.
+      const twin = ownIds(rec.id).find(id => id !== rec.id && written[id])
+      if (twin) {
+        if (written[twin].h === recordKey({ ...rec, id: twin })) { next[twin] = written[twin]; continue }
+        remove(written[twin].k || k, twin)   // its content is on its way under the new id: take the old one out
+      }
       next[rec.id] = { k, h }
-      if (written[rec.id]?.h !== h) into.push(rec)
+      into(k).push(rec)
     }
   }
-  take(sessions, 'session', out.sessions)
-  take(weights, 'weight', out.weights)
+  take(sessions, 'session')
+  take(weights, 'weight')
+  take(hydration, 'hydration')
   for (const [id, was] of Object.entries(written || {})) {
-    if (next[id]) continue
+    if (next[id] || moved.has(id)) continue
     if (gone && !isGone(gone, id)) { next[id] = was; continue }
-    if (was?.k === 'session') out.remove.sessions.push(id)
-    else if (was?.k === 'weight') out.remove.weights.push(id)
+    remove(was?.k, id)
   }
   out.written = next
   return out
 }
 
-// Whether a written record is on record as deleted: by its own id, or as a weigh-in of a removed
-// day ('opengym-bw-<day>-<reading>' under that day's 'opengym-bw-<day>-*').
-const isGone = (gone, id) => gone.has(id) || (/^opengym-bw-\d{4}-\d{2}-\d{2}-/.test(id) && gone.has(id.slice(0, 21) + '-*'))
+// Whether a written record is on record as deleted: by its own id (goneIds names both prefixes),
+// or as a weigh-in of a removed day ('<prefix>-bw-<day>-<reading>' under that day's
+// '<prefix>-bw-<day>-*'). The day is taken from the match, not a fixed slice: renaming the id
+// prefix must never shift it.
+const isGone = (gone, id) => {
+  if (gone.has(id)) return true
+  const m = /^(?:jellogym|opengym)-bw-(\d{4}-\d{2}-\d{2})-/.exec(id)
+  return !!m && ownIds('jellogym-bw-' + m[1] + '-*').some(t => gone.has(t))
+}
 
-/** Every record this phone wrote, by type — what "remove what openGym wrote" takes away. */
+/** Every record this phone wrote, by type — what "remove what JelloGym wrote" takes away. */
 export function writtenIds(written = {}) {
-  const out = { sessions: [], weights: [] }
+  const out = { sessions: [], weights: [], hydration: [] }
   for (const [id, was] of Object.entries(written || {})) {
     if (was?.k === 'session') out.sessions.push(id)
     else if (was?.k === 'weight') out.weights.push(id)
+    else if (was?.k === 'hydration') out.hydration.push(id)
   }
   return out
 }

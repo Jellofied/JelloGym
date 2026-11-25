@@ -5,6 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import TabBar from './TabBar.jsx'
 import { DEF, useStore } from '../store/useStore.js'
+import { useUI } from '../store/useUI.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -14,6 +15,7 @@ beforeEach(() => {
   originalS = store.S
   originalUser = store.user
   useStore.setState({ S: JSON.parse(JSON.stringify(DEF)), user: { id: 'test', name: 'test' } })
+  useUI.setState({ sheets: [] })
   host = document.createElement('div')
   document.body.appendChild(host)
   root = createRoot(host)
@@ -26,6 +28,7 @@ afterEach(() => {
   router.dispose()
   host.remove()
   useStore.setState({ S: originalS, user: originalUser })
+  useUI.setState({ sheets: [] })
 })
 const tap = async label => {
   const button = [...host.querySelectorAll('button')].find(b => b.textContent === label)
@@ -37,9 +40,9 @@ const go = async to => { await act(async () => router.navigate(to)) }
 describe('root tab history', () => {
   it('does not accumulate a back stack when switching tabs repeatedly', async () => {
     for (let i = 0; i < 3; i++) {
-      for (const label of ['Plan', 'Stats', 'Exercises', 'Home']) await tap(label)
+      for (const label of ['Workout', 'Stats', 'Home']) await tap(label)
     }
-    await tap('Plan')
+    await tap('Workout')
     expect(router.state.location.pathname).toBe('/plan')
     await go(-1)
     expect(router.state.location.pathname).toBe('/plan')
@@ -56,7 +59,7 @@ describe('root tab history', () => {
   })
 
   it('still pushes a detail page and returns to the tab it opened from', async () => {
-    await tap('Plan')
+    await tap('Workout')
     await go('/plan/r/one')
     await go(-1)
     expect(router.state.location.pathname).toBe('/plan')
@@ -67,17 +70,31 @@ describe('root tab history', () => {
 
   it('opens a different tab root from a nested page of the active tab', async () => {
     await go('/plan/r/one')
-    await tap('Plan')
+    await tap('Workout')
     expect(router.state.location.pathname).toBe('/plan')
     expect(router.state.historyAction).toBe('REPLACE')
   })
 
-  it('preserves the workout chooser return path', async () => {
+  it('preserves the workout chooser return path, opened from the Start sheet', async () => {
     useStore.setState({ S: { ...useStore.getState().S, routines: [] } })
-    await tap('Start')
-    expect(router.state.location.pathname).toBe('/workout')
-    await go(-1)
-    expect(router.state.location.pathname).toBe('/home')
-    expect(onStart).not.toHaveBeenCalled()
+    await tap('Actions')                                      // idle: the disc opens the hub
+    expect(useUI.getState().sheets).toHaveLength(1)
+    const sheet = useUI.getState().sheets.at(-1)
+    const sheetHost = document.createElement('div')
+    document.body.appendChild(sheetHost)
+    const sheetRoot = createRoot(sheetHost)
+    try {
+      act(() => sheetRoot.render(sheet.render(() => useUI.setState({ sheets: [] }))))
+      const startBtn = [...sheetHost.querySelectorAll('button')].find(b => b.textContent.trim().startsWith('Start workout'))
+      expect(startBtn).toBeTruthy()
+      await act(async () => startBtn.click())                // the hub's primary action starts
+      expect(router.state.location.pathname).toBe('/workout')
+      await go(-1)
+      expect(router.state.location.pathname).toBe('/home')
+      expect(onStart).not.toHaveBeenCalled()
+    } finally {
+      act(() => sheetRoot.unmount())
+      sheetHost.remove()
+    }
   })
 })

@@ -38,8 +38,20 @@ export const MODULES = [
     desc: 'Weigh-ins, measurements, progress photos and your weight goal.' },
   { id: 'health', group: 'body', icon: 'heart', tint: 'var(--red)', title: 'Health',
     desc: 'Apple Health or Health Connect, heart rate and recovery tips.' },
+  { id: 'water', group: 'life', icon: 'drop', tint: 'var(--blue)', title: 'Water', default: false,
+    desc: 'A daily goal, quick-add cups and a ring on Home.' },
+  { id: 'habits', group: 'life', icon: 'checkCircle', tint: 'var(--teal)', title: 'Habits', default: false,
+    desc: 'Routines you check in place, with streaks and rest-day-aware skipping.' },
+  { id: 'steps', group: 'life', icon: 'steps', tint: 'var(--orange)', title: 'Steps', default: false,
+    desc: 'Your daily steps, read from Health Connect. Nothing to log.' },
+  { id: 'sleep', group: 'life', icon: 'moon', tint: 'var(--indigo)', title: 'Sleep', default: false,
+    desc: 'Nights from Health Connect, with a goal and a ring.' },
+  { id: 'food', group: 'life', icon: 'target', tint: 'var(--green)', title: 'Food', default: false,
+    desc: 'Calories and protein, a tap to repeat yesterday, saved foods and meals.' },
   { id: 'motivation', group: 'extras', icon: 'flame', tint: 'var(--orange)', title: 'Motivation',
-    desc: 'Streaks, challenges, badges, recaps and your year in openGym.' },
+    desc: 'Streaks, challenges, badges, recaps and your year in JelloGym.' },
+  { id: 'levels', group: 'extras', icon: 'trophy', tint: 'var(--red)', title: 'Levels', default: false,
+    desc: 'Consistency-weighted XP from every module, milestones and streak freezes.' },
   { id: 'coach', group: 'extras', icon: 'sparkles', tint: 'var(--green)', title: 'AI Coach',
     desc: 'Reviews your training and suggests changes. You still say yes or no.' },
   { id: 'integrations', group: 'extras', icon: 'webhook', tint: 'var(--indigo)', title: 'Integrations',
@@ -53,6 +65,7 @@ export const MODULE = Object.fromEntries(MODULES.map(m => [m.id, m]))
 export const GROUPS = [
   { id: 'training', title: 'Training' },
   { id: 'body', title: 'Body and health' },
+  { id: 'life', title: 'Life' },
   { id: 'extras', title: 'Extras' },
 ]
 
@@ -67,19 +80,29 @@ export const PRESET = Object.fromEntries(PRESETS.map(p => [p.id, p]))
 
 const isMap = v => !!v && typeof v === 'object' && !Array.isArray(v)
 
-/** Whether module `id` is on for this profile. Unknown ids are on (a newer client's module). */
+/** Whether module `id` is on for this profile. Unknown ids are on (a newer client's module).
+ *  A module can ship `default: false` (the life modules): a profile that never chose it is
+ *  off, with no migration. */
 export function isOn(S, id) {
   const v = isMap(S?.modules) ? S.modules[id] : undefined
   if (typeof v === 'boolean') return v
   // Before 1.4.4 the check-in had its own switch in Look & Home; it decides until Modules does.
   if (id === 'checkin') return S?.checkIn !== false
-  return true
+  return MODULE[id]?.default !== false
 }
 
 /** { [id]: boolean } for every module, as this profile has them now. */
 export function moduleStates(S) {
   return Object.fromEntries(MODULE_IDS.map(id => [id, isOn(S, id)]))
 }
+
+/* The modules that make up a "life" rather than a session: the Life tab, the /recap page and the
+   Life half of Stats all ask this one question, so switching the last one off really does hide
+   every trace of the idea. */
+export const LIFE_MODULE_IDS = ['water', 'habits', 'steps', 'sleep', 'food', 'levels']
+
+/** Whether any life module is on: the gate for the Life tab and for /stats/life. */
+export const anyLifeOn = S => LIFE_MODULE_IDS.some(id => isOn(S, id))
 
 /** The full modules map a preset stands for. */
 export function presetModules(presetId) {

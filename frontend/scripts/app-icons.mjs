@@ -218,7 +218,7 @@ export function pngInfo(buf) {
 }
 
 const svgOf = (v, rects) => `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512">
-  <!-- openGym app icon "${v.id}", written by scripts/app-icons.mjs (the glyph of resources/icon.svg). -->
+  <!-- JelloGym app icon "${v.id}", written by scripts/app-icons.mjs (the glyph of resources/icon.svg). -->
   <rect width="512" height="512" fill="${v.bg}"/>
   <g fill="${v.fg}">
 ${rects.map(([x, y, w, h]) => `    <rect x="${x}" y="${y}" width="${w}" height="${h}"/>`).join('\n')}
@@ -292,7 +292,13 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     const body = make()
     const buf = Buffer.isBuffer(body) ? body : Buffer.from(body)
     if (check) {
-      if (!existsSync(p) || !readFileSync(p).equals(buf)) bad.push(rel)
+      // A text body is compared with CRLF folded to LF: git on Windows checks the committed
+      // files out with CRLF, and that newline is not a drifted icon. Buffers (PNGs) stay byte-exact.
+      const disk = existsSync(p) ? readFileSync(p) : null
+      const same = disk != null && (Buffer.isBuffer(body)
+        ? disk.equals(body)
+        : disk.toString('utf8').replace(/\r\n/g, '\n') === body)
+      if (!same) bad.push(rel)
       continue
     }
     mkdirSync(dirname(p), { recursive: true })

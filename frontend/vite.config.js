@@ -84,10 +84,10 @@ const swStamp = {
 // The phone flavour also keeps zooming off (src/lib/viewport-zoom.js): the web build lets people
 // pinch, the Capacitor apps stay as they were.
 const flavor = {
-  name: 'opengym-flavor',
+  name: 'jellogym-flavor',
   transformIndexHtml(html) {
     if (process.env.VITE_MOBILE !== '1') return
-    return { html: mobileViewport(html), tags: [{ tag: 'meta', attrs: { name: 'opengym-flavor', content: 'mobile' }, injectTo: 'head' }] }
+    return { html: mobileViewport(html), tags: [{ tag: 'meta', attrs: { name: 'jellogym-flavor', content: 'mobile' }, injectTo: 'head' }] }
   }
 }
 

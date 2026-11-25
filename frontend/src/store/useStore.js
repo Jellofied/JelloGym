@@ -54,7 +54,7 @@ const SYNCED_FP_KEY = 'gym_synced_fp'  // a fingerprint of that copy (lib/sync-c
 // Changes a forced sign-out or disconnect kept on this device, by server and account, until it
 // reaches that server as that account again. On a phone also a file beside the state mirror.
 const STASH_KEY = 'gym_stash'
-const STASH_FILE = 'opengym-stash.json'
+const STASH_FILE = 'jellogym-stash.json'
 // A browser sign-out whose request never reached the server. The session cookie is HttpOnly, so
 // only the server's answer to /api/logout takes it out of the browser; until that answer comes,
 // boot sends the logout again instead of asking /api/me, which would sign the browser straight
@@ -77,7 +77,7 @@ function logoutOwed(on) {
 }
 // Mobile build: whose copy the file mirror (lib/mobile.js, opengym-state.json) holds, and which
 // one — { owner, ts }, written after it (saveMirror). A device fact, so never inside S.
-const MIRROR_OWNER_FILE = 'opengym-state-owner.json'
+const MIRROR_OWNER_FILE = 'jellogym-state-owner.json'
 const CHECK_MIN_MS = 3000    // rev checks closer together than this are the same event (focus + visibility)
 const POLL_MS = 30000        // while the app is open and signed in, ask the server for its revision this often
 const AUTO_BACKUP_SOON_MS = 2000   // several photos picked at once make one backup
@@ -225,11 +225,15 @@ export const DEF = {
   // entries, Stats, imports and the separate pre-workout weigh-in flow keep working.
   // Defaults on; an older profile without the key reads as on (`!== false`).
   showWeightCard: true,
+  // The cards under Home's hero in the order the user set (Settings → Modules → Card order,
+  // lib/home-order.js). null is the default order. A plain settings field: the merge takes the
+  // whole array from the copy that changed last, like scheduleMode, no stamps to register.
+  homeOrder: null,
   // Whether Start opens the quick weigh-in first (sheets.jsx startFlow, issue #137). Off starts
-  // the session straight away; weight can still be logged from Home/Stats. On here, so an
-  // older profile without the key reads as on (`!== false`) and keeps the step it had; a profile
-  // started from nothing begins with it off (freshState below, v1.3.11): most people weigh in at
-  // home in the morning, not at the gym, and the step cost a tap every workout.
+  // the session straight away; weight can still be logged from Home/Stats. On here, so an older
+  // profile without the key reads as on (`!== false`) and a profile started from nothing asks as
+  // well: the step is one tap to skip, it keeps the curve honest from the first session, and it
+  // used to be off by default for new profiles, which read as a step that had gone missing.
   weighIn: true,
   // The connection banner at the top (components/SyncBanner.jsx, #369/#330). Off hides it; a
   // stuck sync then shows as a dot on Home instead. Defaults on; an older profile without the
@@ -327,11 +331,12 @@ const detectedLang = () => {
 // picked yet, so the instance's DEFAULT_LANG or the browser's language may set it
 // (lib/default-lang.js, #303); picking one in Settings clears it. DEF does not carry the mark:
 // merged under a saved copy it would claim that every existing profile never chose.
+// The weigh-in step comes along from DEF (on): a new profile is asked for its weight at Start,
+// which is where the curve gets its first honest point. It used to be forced off here.
 export function freshState() {
   const s = clone(DEF)
   s.lang = detectedLang()
   s.langAuto = true
-  s.weighIn = false
   // Exercise animations: Small (v1.3.11), a thumbnail beside the exercise name that a tap opens,
   // so the first set is on screen without scrolling. DEF stays 'full' for a profile saved before.
   s.gifSize = 'mini'
@@ -339,7 +344,7 @@ export function freshState() {
 }
 
 // A copy that starts over on this device: Reset everything, or another account signing in here.
-// It is a new profile like freshState's (weigh-in off, small animations), but in the language
+// It is a new profile like freshState's (weigh-in on, small animations), but in the language
 // already on screen, and still marked as never picked when it never was.
 export function restartedState(cur) {
   const s = freshState()
@@ -498,7 +503,7 @@ export const useStore = create((set, get) => {
        'local'   no server: a phone in local mode, a guest, nobody signed in
        'auth'    the server refuses this device (a 401), or the phone has lost its pairing
        'offline' the server could not be reached at all (no network, DNS, a timeout)
-       'error'   it answered with a failure: 5xx, 403, 413, a page that is not openGym's
+       'error'   it answered with a failure: 5xx, 403, 413, a page that is not JelloGym's
        'held'    signed in, but the question about this device's own entries is still open
        'pending' reachable, and a change is still waiting to reach it
        'ok'      this device holds what the server holds

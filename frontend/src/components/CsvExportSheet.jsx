@@ -7,7 +7,8 @@ import { useUI } from '../store/useUI.js'
 import { t, tn } from '../lib/i18n.js'
 import { todayISO, fmtDate } from '../lib/format.js'
 import { reportRange } from '../lib/report.js'
-import { workoutsCSV, bodyCSV, csvCounts } from '../lib/export-csv.js'
+import { workoutsCSV, bodyCSV, waterCSV, habitsCSV, foodCSV, csvCounts } from '../lib/export-csv.js'
+import { isOn } from '../lib/modules.js'
 import { MOBILE, shareExport } from '../lib/mobile.js'
 import { Button, Segmented, Row } from './ui.jsx'
 import DateField from './DateField.jsx'
@@ -32,15 +33,15 @@ export function CsvExportSheet({ close }) {
   const counts = csvCounts(S, r)
   const save = async (kind) => {
     const st = useStore.getState().S
-    const text = kind === 'body' ? bodyCSV(st, r) : workoutsCSV(st, r)
-    const name = 'opengym-' + (kind === 'body' ? 'body' : 'workouts') + '-' + today + '.csv'
+    const text = kind === 'body' ? bodyCSV(st, r) : kind === 'water' ? waterCSV(st, r) : kind === 'habits' ? habitsCSV(st, r) : kind === 'food' ? foodCSV(st, r) : workoutsCSV(st, r)
+    const name = 'jellogym-' + kind + '-' + today + '.csv'
     close()
     try { await saveCSV(text, name); toast?.(t('CSV exported')) } catch (e) { /* share sheet dismissed */ }
   }
   return <>
     <h3>{t('Export as spreadsheet (CSV)')}</h3>
     <div className="muted small" style={{ marginBottom: 12 }}>
-      {t('One row per set, for Excel, Sheets, your coach or another app. openGym reads it back too.')}
+      {t('One row per set, for Excel, Sheets, your coach or another app. JelloGym reads it back too.')}
     </div>
     <Segmented value={range} onChange={setRange} options={[
       { value: 'all', label: t('All') },
@@ -66,6 +67,28 @@ export function CsvExportSheet({ close }) {
     <div className="small dim" style={{ margin: '4px 2px 0' }} data-csv-count="body">
       {tn('{0} weigh-in', '{0} weigh-ins', counts.weighIns) + (counts.measurements ? ' · ' + tn('{0} measurement', '{0} measurements', counts.measurements) : '')}
     </div>
+    {/* A module switched off hides every trace of it, the export button with the rest (lib/modules.js). */}
+    {isOn(S, 'water') && <>
+      <div style={{ height: 12 }} />
+      <Button icon="share" onClick={() => save('water')}>{t('Water (CSV)')}</Button>
+      <div className="small dim" style={{ margin: '4px 2px 0' }} data-csv-count="water">
+        {tn('{0} drink', '{0} drinks', counts.drinks)}
+      </div>
+    </>}
+    {isOn(S, 'habits') && <>
+      <div style={{ height: 12 }} />
+      <Button icon="share" onClick={() => save('habits')}>{t('Habits (CSV)')}</Button>
+      <div className="small dim" style={{ margin: '4px 2px 0' }} data-csv-count="habits">
+        {tn('{0} check', '{0} checks', counts.habitChecks)}
+      </div>
+    </>}
+    {isOn(S, 'food') && <>
+      <div style={{ height: 12 }} />
+      <Button icon="share" onClick={() => save('food')}>{t('Food (CSV)')}</Button>
+      <div className="small dim" style={{ margin: '4px 2px 0' }} data-csv-count="food">
+        {tn('{0} meal', '{0} meals', counts.foods)}
+      </div>
+    </>}
   </>
 }
 

@@ -1,7 +1,7 @@
 // "Share with a friend" (v1.4.4): one routine as a link, https://opengym.ch/r#<payload>.
 //
 // The payload is a plan file (lib/plan-share.js buildPlanBundle) holding just that routine, so it
-// carries the same `opengym_plan` format version and the receiving app reads it with the same
+// carries the same `jellogym_plan` format version and the receiving app reads it with the same
 // parsePlan/mergePlan as an imported file: catalogue ids travel as they are, custom exercises
 // travel by name and body part and are created on import, nothing already there is touched.
 //
@@ -10,7 +10,7 @@
 //
 // It lives in the URL FRAGMENT: browsers never send that part to a server, so opengym.ch only
 // serves the page (website/r/index.html) and never sees the routine. The same payload opens the
-// app as opengym://r#<payload>, Android's https://opengym.ch/r filter, or a web app at
+// app as jellogym://r#<payload>, Android's https://opengym.ch/r filter, or a web app at
 // <server>/#/r/<payload>.
 //
 // Besides the plan file, the bundle carries two things an older app simply ignores: `from`, the
@@ -104,7 +104,7 @@ export function routineLinkBundle(S, routine, { weights = false, from = '' } = {
   if (!routine || !Array.isArray(routine.ex) || !routine.ex.length) throw linkError('empty')
   const sub = { ...S, routines: [routine], week: {}, programmes: {} }
   const b = buildPlanBundle(sub, routine.name || '')
-  const out = { opengym_plan: b.opengym_plan, name: b.name, unit: b.unit, routines: b.routines, customEx: b.customEx }
+  const out = { jellogym_plan: b.jellogym_plan, name: b.name, unit: b.unit, routines: b.routines, customEx: b.customEx }
   if (!out.customEx.length) delete out.customEx
   if (b.exUnit) out.exUnit = b.exUnit
   if (!weights) out.routines = out.routines.map(r => ({ ...r, ex: r.ex.map(stripWeights) }))
@@ -151,7 +151,7 @@ export async function decodePayload(payload) {
   if (bytes.length > MAX_JSON) throw linkError('too-big')
   let data
   try { data = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) } catch { throw linkError('bad-link') }
-  if (!data || typeof data !== 'object' || Array.isArray(data) || !data.opengym_plan || !Array.isArray(data.routines)) throw linkError('bad-link')
+  if (!data || typeof data !== 'object' || Array.isArray(data) || !data.jellogym_plan || !Array.isArray(data.routines)) throw linkError('bad-link')
   return data
 }
 
@@ -175,7 +175,7 @@ const PAYLOAD_RE = /^\d{1,4}\.[a-z]\.[A-Za-z0-9_-]+$/
 /**
  * The payload of a routine link, or null for anything else. Never throws. Reads
  *   https://opengym.ch/r#P  https://opengym.ch/r/#P  (www. too)
- *   opengym://r#P  opengym://r/#P
+ *   jellogym://r#P  jellogym://r/#P
  *   any web app's  .../#/r/P  (the hash route the website's "Open in the web app" uses)
  */
 export function routinePayloadFromUrl(raw) {
@@ -193,7 +193,7 @@ export function routinePayloadFromUrl(raw) {
     if (u.pathname.replace(/\/index\.html$/, '').replace(/\/+$/, '') !== '/r') return null
     return ok(hash)
   }
-  if (proto !== 'opengym:') return null
+  if (proto !== 'jellogym:') return null
   const host = (u.hostname || '').toLowerCase()
   const rest = u.pathname.replace(/^\/+/, '').replace(/\/+$/, '')
   if (host !== 'r' || rest) return null

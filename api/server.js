@@ -1,4 +1,4 @@
-/* opengym-api — passkey (WebAuthn) auth + per-user state storage for openGym
+/* jellogym-api — passkey (WebAuthn) auth + per-user state storage for JelloGym
    No framework, JSON-file storage, signed session cookies.               */
 import http from 'node:http';
 import crypto from 'node:crypto';
@@ -16,7 +16,7 @@ import * as coachJobs from './coach/jobs.js';
 import { coachRoutes } from './coach/routes.js';
 import { startCadence } from './coach/cadence.js';
 import { startWarmup } from './coach/warmup.js';
-import { dayReminderPush, nudgePush, restTimerPush, testPush } from './push-messages.js';
+import { dayReminderPush, nudgePush, restTimerPush, testPush, waterPush, habitPush } from './push-messages.js';
 import { verifyError, isMisconfigured, originHint } from './verify-error.js';
 import {
   hashPassword, verifyPassword, needsRehash, passwordProblem, passwordLength, nameKey, BusyError,
@@ -41,14 +41,14 @@ import { atomicWrite as durableWrite } from './durable.js';
 import { ipv6Groups, guardedLookup, pushEndpointError, MAX_PUSH_ENDPOINT } from './net-guard.js';
 import { createIntegrations } from './integrations/index.js';
 import { integrationRoutes } from './integrations/routes.js';
-import { excusedOn, nudgeFor, nudgeWindowOpen, toneOf } from './nudge.js';
+import { nudgeFor, nudgeWindowOpen, toneOf, waterNudgeFor, waterNudgeWindowOpen, habitNudgeFor, habitNudgeWindowOpen } from './nudge.js';
 import { wrappedPushYear, wrappedSummary, wrappedPushOwed, wrappedPush } from './wrapped.js';
 
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
 const RP_ID = process.env.RP_ID || 'localhost';
 const ORIGIN = process.env.ORIGIN || 'http://localhost:8080';
-const RP_NAME = process.env.RP_NAME || 'openGym';
+const RP_NAME = process.env.RP_NAME || 'JelloGym';
 // Admin dashboard (issue): admins are matched by uid (or the admin flag FIRST_USER_ADMIN sets);
 // INVITE_ONLY gates new signups behind a code the admin generates. Off by default, so a fresh
 // self-hosted instance stays open.
@@ -477,9 +477,13 @@ function stateSummary(uid) {
   if (had && had.mtimeMs === st.mtimeMs && had.size === st.size) return had;
   const S = readStateCached(uid);
   const r = S?.reminder;
+  const w = S?.waterReminder;
+  const hb = S?.habitReminder;
   const sum = {
     mtimeMs: st.mtimeMs, size: st.size,
     rem: r && typeof r === 'object' ? { on: !!r.on, tz: r.tz, time: r.time, nudge: !!r.nudge } : { on: false },
+    wat: w && typeof w === 'object' ? { on: !!w.on, tz: w.tz, time: w.time } : { on: false },
+    hab: hb && typeof hb === 'object' ? { on: !!hb.on, tz: hb.tz, time: hb.time } : { on: false },
     consent: !!S?.coach?.consent?.agreedAt,
     settled: '',   // a local date the reminder was found to owe nothing on, for this file
     wrapped: wrappedSummary(S),   // the December push (wrapped.js): a flag, a year, a few years
@@ -487,7 +491,7 @@ function stateSummary(uid) {
   stateSummaries.set(uid, sum);
   return sum;
 }
-// "Your year in openGym" (wrapped.js): once per user and year, on Dec 1 from 18:00 server time.
+// "Your year in JelloGym" (wrapped.js): once per user and year, on Dec 1 from 18:00 server time.
 // The year it went out for is written to db.json before the send, so a crash after it, a restart
 // or the next tick cannot send it twice. Read from the summary only: no state is parsed for it.
 function wrappedTick(user, sum, year) {
@@ -509,9 +513,39 @@ setInterval(() => {
     try {
       const sum = stateSummary(user.id);
       if (wrappedYear && sum && user.wrappedPush !== wrappedYear) wrappedTick(user, sum, wrappedYear);
-      if (!sum?.rem.on) continue;
-      const now = userNow(sum.rem.tz || 'UTC');
+      // The workout reminder and the water nudge each have their own switch and window. Proceed
+      // if either is on; the wall clock is the same device, so the reminder's zone wins and the
+      // water reminder's own zone is the fallback when only water is on.
+      const remOn = !!sum?.rem.on;
+      const watOn = !!sum?.wat?.on;
+      const habOn = !!sum?.hab?.on;
+      if (!remOn && !watOn && !habOn) continue;
+      const now = userNow((remOn ? sum.rem.tz : watOn ? sum.wat.tz : sum.hab.tz) || 'UTC');
       if (!now) continue;
+      // Water nudge (docs/LIFE_MODULES.md 1d): its own once-per-local-date mark; it reads the
+      // half-goal shortfall. A session on screen is not a reason to skip hydration.
+      if (watOn && user.lastWaterNudge !== now.date && waterNudgeWindowOpen(sum.wat.time, now.hhmm)) {
+        const Sw = readStateCached(user.id);
+        const owed = Sw?.waterReminder?.on ? waterNudgeFor(Sw, now.date) : null;
+        if (owed) {
+          console.log('water nudge firing', user.id, owed.left);
+          user.lastWaterNudge = now.date;
+          saveDb();
+          sendPush(user.id, waterPush(Sw.lang, owed, now.date));
+        }
+      }
+      // The habit digest (docs/LIFE_MODULES.md 2b), same shape as the water nudge above.
+      if (habOn && user.lastHabitNudge !== now.date && habitNudgeWindowOpen(sum.hab.time, now.hhmm)) {
+        const Sh = readStateCached(user.id);
+        const owed = Sh?.habitReminder?.on ? habitNudgeFor(Sh, now.date) : null;
+        if (owed) {
+          console.log('habit nudge firing', user.id, owed.ids.join(','));
+          user.lastHabitNudge = now.date;
+          saveDb();
+          sendPush(user.id, habitPush(Sh.lang, owed, now.date));
+        }
+      }
+      if (!remOn) continue;
       const late = minutesLate(sum.rem.time, now);
       const reminderOpen = late >= 0 && late <= REMINDER_WINDOW_MIN && user.lastReminder !== now.date && sum.settled !== now.date;
       const nudgeOpen = sum.rem.nudge && user.lastNudge !== now.date && nudgeWindowOpen(sum.rem.time, now.hhmm);
@@ -523,7 +557,6 @@ setInterval(() => {
       // Nothing below depends on anything but the file, so an answer of "nothing owed today"
       // holds until the file changes (which drops the summary) or the date does.
       if ((S.workouts || []).some(w => w?.d === now.date)) { sum.settled = now.date; continue; }
-      if (excusedOn(S, now.date)) { sum.settled = now.date; continue; } // noted as sick, away, … (nudge.js excusedOn)
       const rid = effectiveRoutineId(S, now.date);
       if (!rid) { sum.settled = now.date; continue; } // rest day — nothing planned
       const routine = (S.routines || []).find(r => r?.id === rid);
@@ -2385,7 +2418,7 @@ const routes = {
   },
 
   // The watch relay (watch-relay.js, docs/ZEPP_OS.md). A signed-in device asks for a code, the
-  // Zepp app's settings page for openGym redeems it for a watch token, and from then on the page
+  // Zepp app's settings page for JelloGym redeems it for a watch token, and from then on the page
   // and the watch's Side Service meet in this profile's mailbox. A watch token opens the two
   // /api/watch/box routes and nothing else, so a session is all that minting one asks; "sign out
   // everywhere" and a new password end every watch link with the sessions (their version).
@@ -2520,7 +2553,7 @@ const routes = {
     }
     const doc = readStateCached(user.id) || {};
     const workouts = Array.isArray(doc.workouts) ? doc.workouts : [];
-    const done = workouts.some(w => w && w.d === date) || excusedOn(doc, date);
+    const done = workouts.some(w => w && w.d === date);
     let nudge = false;
     try { nudge = !done && !!nudgeFor(doc, date); } catch { nudge = true; }   // unreadable: keep what the phone planned
     json(res, 200, { date, done, nudge, rev: doc._rev || 0 });

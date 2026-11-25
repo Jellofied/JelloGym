@@ -6,13 +6,36 @@
 //
 //   node scripts/ci/deps-audit.mjs frontend api mcp
 import { execFileSync } from 'node:child_process'
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, existsSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 
 const dirs = process.argv.slice(2)
+
+// Getting npm to run on every machine this script is used on is not one call:
+//   - Windows: `npm` is npm.cmd, and CreateProcess will not resolve it (ENOENT); going through a
+//     shell works but Node then warns that the arguments are only concatenated (DEP0190), and the
+//     warning lands in the job summary this script writes;
+//   - Linux and macOS: plain `npm` is fine, and the file next to the node binary is not always
+//     there (a distro package puts it under /usr/lib).
+// So: run the npm CLI through this very node when it can be found next to it (the npm that ships
+// with Node on Windows, and a normal `brew`/nodesource install), and otherwise call `npm` as
+// before. Same JSON either way.
+const npmEntry = () => {
+  const dir = dirname(process.execPath)
+  return [
+    join(dir, 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    join(dir, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+  ].find(p => existsSync(p)) || null
+}
+const ENTRY = npmEntry()
+
 const audit = (dir, omitDev) => {
+  const args = ['audit', '--json', ...(omitDev ? ['--omit=dev'] : [])]
+  const cmd = ENTRY ? process.execPath : 'npm'
+  const all = ENTRY ? [ENTRY, ...args] : args
   let out
   try {
-    out = execFileSync('npm', ['audit', '--json', ...(omitDev ? ['--omit=dev'] : [])], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+    out = execFileSync(cmd, all, { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
   } catch (e) {
     out = e.stdout // npm audit exits 1 when it finds anything
   }

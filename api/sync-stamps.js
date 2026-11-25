@@ -1,4 +1,4 @@
-// The server's half of the sync stamps. Hand-copied (not imported) from
+﻿// The server's half of the sync stamps. Hand-copied (not imported) from
 // frontend/src/lib/sync-merge.js, like queue.js: the same rules on both sides, kept as a small
 // standalone module so it can be unit-tested without booting the server, and checked against the
 // frontend's copy by frontend/src/lib/sync-stamps-parity.test.js.
@@ -21,7 +21,7 @@
 //   1. never lets the records shrink: `deleted` and `edited` are joined with the stored ones (but
 //      a reset, which starts the profile over, keeps its own);
 //   2. for a writer that does not stamp (no `stamped: true` in the body) and wrote over the
-//      revision it read: stamps what it changed against the stored copy, at the server's time —
+//      revision it read: stamps what it changed against the stored copy, at the server's time â€”
 //      entries removed, settings and plan days changed, entries edited. A setting, plan day or
 //      entry field whose stored stamp is later than the one the writer sent back (it never saw
 //      that change) keeps the stored value: an older app back from a dead spot no longer sets
@@ -67,14 +67,16 @@ const capStamps = m => {
 const OWN_MERGE = new Set([
   '_ts', '_rev', '_wid', '_wids', '_unstamped', '_prior', 'active', 'unit', 'unitSet', 'resetAt', 'resetIds', 'deleted', 'edited', 'undone', 'routineOrder',
   'workouts', 'routines', 'customEx', 'equipProfiles', 'gymCards', 'bodyweight', 'measurements', 'favEx',
-  'exWeights', 'balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'exUnit', 'dayNotes', 'dayPhotos', 'exMerged',
+  'exWeights', 'balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'exUnit', 'dayNotes', 'dayPhotos', 'exMerged', 'water', 'habitDefs', 'habitLogs', 'steps', 'sleep', 'badges', 'freezeUsed', 'food', 'savedFoods',
 ]);
 // `modules` (frontend lib/modules.js) per module, as the app stamps it.
 const PER_KEY = new Set(['week', 'dayPlan', 'exNotes', 'barWeights', 'exAliases', 'programmes', 'modules']);
 // The maps whose every entry carries its own edit time (sync-merge.js STAMPED_MAPS): merged per
-// key by the app, so never stamped here as a whole setting. dayNotes is a note per day off,
-// dayPhotos a progress photo filed under a day (#557), one entry per photo.
-export const STAMPED_MAPS = ['balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'exUnit', 'dayNotes', 'dayPhotos', 'exMerged'];
+// key by the app, so never stamped here as a whole setting. dayNotes is a note per day,
+// dayPhotos a progress photo filed under a day (#557), one entry per photo; water a drink
+// logged against a day (frontend lib/water.js), one entry per drink; habitDefs and habitLogs the
+// habits module (frontend lib/habits.js), one entry per habit and per check-in.
+export const STAMPED_MAPS = ['balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'exUnit', 'dayNotes', 'dayPhotos', 'exMerged', 'water', 'habitDefs', 'habitLogs', 'steps', 'sleep', 'badges', 'freezeUsed', 'food', 'savedFoods'];
 const ENTRY_META = new Set(['id', '_ts', '_f', '_u']);
 const ENTRY_LISTS = ['routines', 'customEx', 'equipProfiles', 'gymCards', 'workouts'];
 

@@ -9,12 +9,11 @@
 //
 // The no-nag rules are decided by the native side when a gym is entered, since the page is not
 // running then. The page hands it what it needs to know (skipReason below spells out the rule the
-// native code follows): when you last trained, whether a session is running, a day note that
-// excuses today, and the notification text in the app's language.
+// native code follows): when you last trained, whether a session is running, and the
+// notification text in the app's language.
 import { MOBILE } from './mobile.js'
 import { t } from './i18n-core.js'
 import { isoOf } from './format.js'
-import { excusedOn } from './day-notes.js'
 import { remoteAuth } from './api.js'
 
 export const GYM_KEY = 'gym_reminder_v1'
@@ -101,12 +100,11 @@ export function inWindow(win, date) {
 export function statusOf(S, now = new Date()) {
   let trainedOn = ''
   for (const w of S?.workouts || []) if (typeof w?.d === 'string' && w.d > trainedOn) trainedOn = w.d
-  const today = isoOf(now)
   const a = S?.active
   const activeSince = a && !a.editingWorkoutId && !a.backfill && Number(a.start) > 0 ? Number(a.start) : 0
   return {
     trainedOn,
-    quietOn: S && excusedOn(S, today) ? today : '',
+    quietOn: '',
     activeSince,
     title: t('Gym spotted'),
     body: t('Ready for your workout? 💪'),
@@ -123,7 +121,7 @@ export function statusOf(S, now = new Date()) {
  *   off       the reminder is switched off (or no gym)
  *   fired     it already went off today (max once a day, whichever gym)
  *   trained   a workout is logged for today
- *   quiet     today has a day note that excuses it (sick, away)
+ *   quiet     a quiet day from an older build (notes no longer set one)
  *   active    a session is running (started less than 12 hours ago)
  *   window    outside the optional time window
  */

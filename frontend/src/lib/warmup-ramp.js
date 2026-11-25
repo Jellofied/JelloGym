@@ -24,7 +24,6 @@ import { isWarmupRow, makeSideSet } from './workout-model.js'
 import { exerciseOf, isAssisted } from './exercises.js'
 import { rungWeight } from './warmup-snap.js'
 
-export const WARMUP_AUTO = ['off', 'compounds', 'all']
 export const WARMUP_MODES = ['auto', 'own', 'none']
 /** The most rows a block of your own may hold, the same ceiling as the ramp-set stepper. */
 export const MAX_OWN_WARMUPS = 5

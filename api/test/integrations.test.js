@@ -291,7 +291,7 @@ test('connect, deliver signed, fail, retry and disconnect, end to end', async ()
   assert.equal(made.connection.info.url, 'https://hooks.example.com/api/webhook/…7890');
   // Nothing secret on disk in the clear, and the app never gets it back.
   const disk = fs.readFileSync(path.join(r.dataDir, 'integrations', 'u-u1.json'), 'utf8');
-  assert.ok(!disk.includes(secret) && !disk.includes('opengym-1234567890'));
+  assert.ok(!disk.includes(secret) && !disk.includes('jellogym-1234567890'));
   assert.ok(!JSON.stringify(r.hub.describe('u1')).includes(secret));
 
   // A finished workout (after the webhook was added) goes out once, signed.
@@ -305,18 +305,18 @@ test('connect, deliver signed, fail, retry and disconnect, end to end', async ()
   assert.equal(r.calls.length, 1);
   const c = r.calls[0];
   assert.equal(c.url, 'https://hooks.example.com/api/webhook/opengym-1234567890');
-  assert.equal(c.headers['X-OpenGym-Event'], 'workout.finished');
-  assert.equal(verifySignature(secret, c.body, c.headers['X-OpenGym-Signature']), true);
+  assert.equal(c.headers['X-JelloGym-Event'], 'workout.finished');
+  assert.equal(verifySignature(secret, c.body, c.headers['X-JelloGym-Signature']), true);
   const body = JSON.parse(c.body);
   assert.equal(body.version, 1);
   assert.equal(body.type, 'workout.finished');
-  assert.equal(body.id, c.headers['X-OpenGym-Delivery']);
+  assert.equal(body.id, c.headers['X-JelloGym-Delivery']);
   assert.equal(body.data.workout.id, 'w1');
 
   // Not subscribed to records: a PR workout is one delivery, not two.
   r.hub.onStateWrite('u1', { workouts: [w] }, { workouts: [w, W('w2', -2000, { end: NOW + 40000, prs: ['0025'] })] });
   await r.hub._outbox().run();
-  assert.deepEqual(r.calls.map(x => x.headers['X-OpenGym-Event']), ['workout.finished', 'workout.finished']);
+  assert.deepEqual(r.calls.map(x => x.headers['X-JelloGym-Event']), ['workout.finished', 'workout.finished']);
 
   // The receiver goes down: logged, retried, and the card says so once it gives up.
   r.setAnswer(() => ({ status: 503, headers: {} }));

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { workoutVolume } from './history.js'
-import { parseWhen, parseWorkoutCSV, parseBodyweight, mergeImport } from './import-csv.js'
+import { parseWhen, parseWorkoutCSV, parseBodyweight, parseImport, mergeImport } from './import-csv.js'
 
 const CSV = [
   'Date,Exercise,Weight,Reps,Set Type',
@@ -296,5 +296,70 @@ describe('impossible dates and numbers', () => {
   it('body weight drops future days and impossible weights', () => {
     const parsed = parseBodyweight('Date,Weight (kg)\n2026-01-01,70\n2026-01-02,-70\n2026-01-03,9000\n2099-01-01,70', { unit: 'kg' })
     expect(parsed.bodyweight.map(b => b.d)).toEqual(['2026-01-01'])
+  })
+})
+
+describe('water CSV (our own file)', () => {
+  const FILE = 'date,ml\r\n2026-11-12,500\r\n2026-11-14,250\r\n2026-11-14,250\r\nbad-row,x\r\n'
+  it('sniffs the date+ml header as water before workouts or weights, and only from our exact header', () => {
+    const parsed = parseImport(FILE)
+    expect(parsed.kind).toBe('water')
+    expect(parsed.source).toBe('JelloGym')
+    expect(parsed.water).toEqual([{ d: '2026-11-12', ml: 500 }, { d: '2026-11-14', ml: 250 }, { d: '2026-11-14', ml: 250 }])
+    expect(parsed.skipped).toBe(1)
+    // a workouts file still reads as workouts, and a date column without ml is not water
+    expect(parseImport('date,start_time,exercise\r\n2026-11-14,1800,squat\r\n').kind).not.toBe('water')
+    expect(parseImport('date,ml_extra\r\n2026-11-14,500\r\n').error).toBeTruthy()
+  })
+
+  it('merges one entry per row with ids two devices agree on; importing twice adds nothing', () => {
+    const parsed = parseImport(FILE)
+    const S = { unit: 'kg', workouts: [], bodyweight: [], water: {} }
+    const res = mergeImport(S, parsed)
+    expect(res.added).toBe(3)
+    expect(Object.values(S.water).every(e => e.d && e.ml > 0)).toBe(true)
+    const ids = new Set(Object.keys(S.water))
+    expect(ids.size).toBe(3)                        // two identical rows stay two drinks
+    const again = mergeImport(S, parseImport(FILE))
+    expect(again.added).toBe(0)
+    expect(Object.keys(S.water).length).toBe(3)     // the same rows landed on the same ids
+  })
+
+  it('leaves live entries alone and never revives a removed drink', () => {
+    const S = { unit: 'kg', workouts: [], bodyweight: [] }
+    mergeImport(S, parseImport(FILE))
+    const id = Object.keys(S.water)[0]
+    S.water[id] = { ...S.water[id], ml: 750 }       // the drink was retyped here
+    const tomb = Object.keys(S.water)[2]
+    S.water[tomb] = { _ts: 9 }                      // and one was deleted here
+    const res = mergeImport(S, parseImport(FILE))
+    expect(res.added).toBe(0)
+    expect(S.water[id].ml).toBe(750)
+    expect(S.water[tomb]).toEqual({ _ts: 9 })
+  })
+})
+
+describe('habits CSV (our own file)', () => {
+  const FILE = 'date,habit,value\r\n2026-11-13,Read,20\r\n2026-11-14,Read,check\r\n2026-11-14,Gone,something\r\n2026-11-14,Pills,skip\r\n'
+  const S = () => ({ unit: 'kg', workouts: [], bodyweight: [], habitDefs: {}, habitLogs: {} })
+  it('reads the exact header, keeps rows, counts a junk row skipped', () => {
+    const parsed = parseImport(FILE)
+    expect(parsed.kind).toBe('habit')
+    expect(parsed.habits.length).toBe(4)
+  })
+  it('merges by name onto live habits, twice imports once, skips unknown names', async () => {
+    const { addHabit } = await import('./habits.js')
+    const S2 = S()
+    addHabit(S2, { name: 'Read', type: 'timed', target: 20 }, { id: 'h1', now: 1 })
+    addHabit(S2, { name: 'Pills', type: 'yesno' }, { id: 'h2', now: 1 })
+    const res = mergeImport(S2, parseImport(FILE))
+    expect(res.added).toBe(3)
+    expect(res.unmatched).toBe(1)
+    const entries = Object.values(S2.habitLogs)
+    expect(entries.find(e => e.d === '2026-11-13').sec).toBe(20 * 60)
+    expect(entries.find(e => e.h === 'h2').skip).toBe(1)
+    const again = mergeImport(S2, parseImport(FILE))
+    expect(again.added).toBe(0)
+    expect(Object.keys(S2.habitLogs).length).toBe(3)
   })
 })

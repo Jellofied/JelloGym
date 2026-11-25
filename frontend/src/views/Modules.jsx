@@ -4,7 +4,7 @@
 // below make a mix of their own), then one row per module in three groups, each with its switch.
 // Off hides; it never deletes. A module that is connected to something (the phone's health app,
 // a watch, webhooks, scheduled Coach reviews) says what pauses and asks once before it goes off.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store/useStore.js'
 import { t } from '../lib/i18n.js'
 import { MOBILE } from '../lib/mobile.js'
@@ -12,9 +12,11 @@ import { DEMO } from '../lib/demo.js'
 import { platformNow } from '../lib/platform-now.js'
 import { api } from '../lib/api.js'
 import { MODULES, GROUPS, PRESETS, isOn, presetOf, presetModules, applyPreset, setModule, turnedOff, onCount } from '../lib/modules.js'
+import { homeCardsVisible, orderHomeCards } from '../lib/home-order.js'
 import { readWatchStatus, readGarminLink } from '../lib/watch-settings.js'
 import { moduleCopy, groupCopy, presetCopy } from '../lib/modules-copy.js'
 import { confirmSheet } from '../sheets.jsx'
+import Icon from '../components/Icon.jsx'
 import { Section, Row, SelectRow, Switch } from '../components/ui.jsx'
 
 /* What is connected right now, read once when the page opens. Each answer is a promise that never
@@ -79,6 +81,26 @@ export default function ModulesPage() {
       onConfirm: () => update(apply),
     })
   }
+
+  // A life module that lives in the phone's health store asks for its permission the moment the
+  // switch goes on (docs/LIFE_MODULES.md): water asks WRITE_HYDRATION, steps and sleep their
+  // reads — each on its own, never batched with the old exercise/weight pair.
+  const lifeOn = ['water', 'steps', 'sleep'].filter(id => isOn(S, id)).join(',')
+  const lifeAsked = useRef({})
+  useEffect(() => {
+    if (!MOBILE || platformNow() !== 'android') return
+    const st = () => useStore.getState().S
+    if (isOn(st(), 'water') && !lifeAsked.current.water) {
+      lifeAsked.current.water = true
+      import('../lib/health-sync.js').then(m => m.enableWaterWrite()).catch(() => {})
+    }
+    for (const kind of ['steps', 'sleep']) {
+      if (isOn(st(), kind) && !lifeAsked.current[kind]) {
+        lifeAsked.current[kind] = true
+        import('../lib/health-sync.js').then(m => m.enableRead(kind, st)).catch(() => {})
+      }
+    }
+  }, [lifeOn])
   const mc = moduleCopy(), gc = groupCopy(), pc = presetCopy()
   const pickPreset = id => {
     if (id === 'custom' || id === preset) return
@@ -95,6 +117,35 @@ export default function ModulesPage() {
     ...PRESETS.map(p => ({ value: p.id, label: pc[p.id][0], subtitle: pc[p.id][1] })),
     { value: 'custom', label: t('Custom'), subtitle: t('Your own mix. Flip the switches below.') },
   ]
+
+  // Card order (lib/home-order.js): the stack under Home's hero, top card first. Only the cards
+  // this profile has on are listed; a module switched back on lands at the bottom until placed.
+  // The move writes the whole visible order, which is also what the sort rule expects.
+  const order = orderHomeCards(homeCardsVisible(S), S.homeOrder)
+  const labels = {
+    level: [t('Levels'), 'trophy'],
+    recap: [t('Recap'), 'chart'],
+    seasonal: [t('Seasonal themes'), 'pumpkin'],
+    wrapped: [t('Your year in JelloGym'), 'sparkles'],
+    recovery: [t('Recovery'), 'heart'],
+    challenges: [t('Challenges'), 'medal'],
+    checkin: [t('Gym check-in'), 'qr'],
+    water: [t('Water'), 'drop'],
+    habits: [t('Habits'), 'checkCircle'],
+    steps: [t('Steps'), 'steps'],
+    sleep: [t('Sleep'), 'moon'],
+    food: [t('Food'), 'target'],
+    body: [t('Body weight'), 'scale'],
+    streak: [t('Week streak'), 'flame'],
+  }
+  const move = (id, dir) => {
+    const i = order.indexOf(id), j = i + dir
+    if (j < 0 || j >= order.length) return
+    const next = [...order]
+    next[i] = next[j]; next[j] = id
+    update(s => { s.homeOrder = next })
+  }
+
   return <div className="modules">
     <p className="sect-f modules-intro">{t('Switch off what you don’t use. Nothing gets deleted: switch it back on and it’s all still there.')}</p>
     <Section footer={preset === 'custom' ? t('{0} of {1} modules on.', onCount(S), MODULES.length) : null}>
@@ -109,5 +160,13 @@ export default function ModulesPage() {
         </Row>
       ))}
     </Section>)}
+    {order.length > 1 && <Section title={t('Card order')}>
+      {order.map((id, i) => <Row key={id} icon={labels[id][1]} title={labels[id][0]} className="module-row">
+        <div className="row" style={{ gap: 4 }}>
+          <button type="button" className="iconbtn" aria-label={t('Move up')} disabled={i === 0} onClick={() => move(id, -1)}><Icon name="chevronUp" /></button>
+          <button type="button" className="iconbtn" aria-label={t('Move down')} disabled={i === order.length - 1} onClick={() => move(id, 1)}><Icon name="chevronDown" /></button>
+        </div>
+      </Row>)}
+    </Section>}
   </div>
 }

@@ -67,12 +67,12 @@ describe('Replace exercise', () => {
   it('renders the swap icon when replacing and the plus icon when adding (#561)', () => {
     exercisePicker(vi.fn(), { title: 'Replace exercise', like: '0025' })
     const hostReplace = renderTop()
-    const replaceIcon = hostReplace.querySelector('.list .item .iconbtn.chev svg')
+    const replaceIcon = hostReplace.querySelector('.list .item .iconbtn.chev .icn')
     expect(replaceIcon?.getAttribute('data-icon')).toBe('swap')
 
     exercisePicker(vi.fn())
     const hostAdd = renderTop()
-    const addIcon = hostAdd.querySelector('.list .item .iconbtn.chev svg')
+    const addIcon = hostAdd.querySelector('.list .item .iconbtn.chev .icn')
     expect(addIcon?.getAttribute('data-icon')).toBe('plus')
   })
 })

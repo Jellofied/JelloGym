@@ -1,4 +1,4 @@
-import { NUDGE_COPY } from './nudge-copy.js';
+import { NUDGE_COPY, WATER_COPY, HABIT_COPY } from './nudge-copy.js';
 import { lineIndex } from './nudge.js';
 
 const COPY = {
@@ -48,7 +48,7 @@ export function restTimerPush(lang) {
 }
 
 export function testPush(lang) {
-  return { title: 'openGym', body: copyFor(lang).testBody, tag: 'test' };
+  return { title: 'JelloGym', body: copyFor(lang).testBody, tag: 'test' };
 }
 
 export function dayReminderPush(lang, routine) {
@@ -76,6 +76,35 @@ const nudgeCopyFor = lang => {
 export function nudgePush(lang, tone, routine, iso) {
   const copy = nudgeCopyFor(lang)[NUDGE_COPY.en[tone] ? tone : 'friendly'];
   const line = copy.lines[lineIndex(iso, copy.lines.length)];
-  const name = routine?.name || 'openGym';
+  const name = routine?.name || 'JelloGym';
   return { title: copy.title, body: line.replace('{0}', () => name), tag: 'nudge' };
+}
+
+// The behind-on-water nudge (nudge.js waterNudgeFor, docs/LIFE_MODULES.md 1d): same generated
+// copy mechanism, its own tag so a fresh one replaces the last.
+const waterCopyFor = lang => {
+  if (lang === 'de-CH') {
+    const ch = s => s.replace(/ß/g, 'ss');
+    return { title: ch(WATER_COPY.de.title), lines: WATER_COPY.de.lines.map(ch) };
+  }
+  return WATER_COPY[lang] || WATER_COPY.en;
+};
+export function waterPush(lang, p, iso) {
+  const copy = waterCopyFor(lang);
+  const line = copy.lines[lineIndex(iso, copy.lines.length)];
+  return { title: copy.title, body: line.replace('{0}', () => String(p.left)), tag: 'water-nudge' };
+}
+
+// The habit reminder digest (lib/nudge.js habitNudgeFor): the open habits' names in one line.
+const habitCopyFor = lang => {
+  if (lang === 'de-CH') {
+    const ch = s => s.replace(/ß/g, 'ss');
+    return { title: ch(HABIT_COPY.de.title), lines: HABIT_COPY.de.lines.map(ch) };
+  }
+  return HABIT_COPY[lang] || HABIT_COPY.en;
+};
+export function habitPush(lang, open, iso) {
+  const copy = habitCopyFor(lang);
+  const line = copy.lines[lineIndex(iso, copy.lines.length)];
+  return { title: copy.title, body: line.replace('{0}', () => open.names), tag: 'habit-nudge' };
 }

@@ -1,0 +1,213 @@
+﻿/* Nothing-style Home: charcoal ground, white type, one red accent, hairline rules.
+   The NDot / NType82 / Geist faces live in index.css (app-wide). */
+
+.home-nothing{
+  --n-display:'NDot 57','NType82','Geist',sans-serif;
+  --n-head:'NType82','Geist',sans-serif;
+  --n-body:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  font-family:var(--n-body);
+  font-synthesis-weight:none;
+  --n-line:#2f2d31;
+  --n-line-2:#454349;
+  --n-grey:#b1b3b3;
+
+  --bg:#000000;
+  --bg-el:#000000;
+  --surface:#1b1d1f;
+  --surface-2:#232527;
+  --surface-3:#2b2d30;
+  --surface-raised:#1b1d1f;
+  --raised-line:rgba(255,255,255,.08);
+
+  --label:#ffffff;
+  --label-2:var(--n-grey);
+  --label-3:#717474;
+  --label-4:#3a3d3d;
+  --label-dim:#8b8e8e;
+  --sep:rgba(255,255,255,.11);
+  --sep-op:rgba(255,255,255,.07);
+
+  --acc:#c8102e;
+  --acc-2:#a40d26;
+  --acc-ink:#c8102e;
+  --on-acc:#ffffff;
+  --acc-soft:color-mix(in srgb,var(--acc) 16%,transparent);
+  --acc-line:color-mix(in srgb,var(--acc) 40%,transparent);
+  --green:#dcd7d2;
+  --green-ink:#c8102e;
+  --orange:#c8102e;
+  --red:#c8102e;
+  --blue:#dcd7d2;
+  --teal:#dcd7d2;
+  --indigo:#dcd7d2;
+  --yellow:#dcd7d2;
+  --gold-ink:#dcd7d2;
+
+  --r-sm:10px;
+  --r:14px;
+  --r-lg:18px;
+  --r-xl:24px;
+  --r-card:18px;
+}
+
+body:has(.home-nothing){
+  --bg:#000000;
+  --bg-el:#000000;
+  --surface:#1b1d1f;
+  --surface-2:#232527;
+  --surface-3:#2b2d30;
+  --label:#ffffff;
+  --label-2:#b1b3b3;
+  --label-3:#717474;
+  --label-dim:#8b8e8e;
+  --sep:rgba(255,255,255,.11);
+  --sep-op:rgba(255,255,255,.07);
+  --acc:#c8102e;
+  --acc-2:#a40d26;
+  --acc-ink:#c8102e;
+  --on-acc:#ffffff;
+  --green:#dcd7d2;
+  --orange:#c8102e;
+  --red:#c8102e;
+}
+
+.home-nothing .card{
+  background:var(--surface);border:0;border-radius:18px;
+  padding:var(--pad-card);margin-bottom:14px;
+}
+.home-nothing .card h2{
+  font-family:var(--n-head);font-size:11px;font-weight:400;letter-spacing:.01em;line-height:1.25;
+  color:var(--label-3);margin:0 0 14px;
+}
+.home-nothing .card-head-title{
+  font-family:var(--n-head);font-weight:400;letter-spacing:.01em;line-height:1.25;
+}
+.home-nothing .card-head-sub,
+.home-nothing .lbl2,
+.home-nothing .sect-t{
+  font-family:var(--n-body);font-size:10px;font-weight:500;letter-spacing:.02em;
+  color:var(--label-3);
+}
+.home-nothing .card-head-sub,
+.home-nothing .sect-t{font-size:10.5px}
+.home-nothing .card .big{
+  font-family:var(--n-display);font-size:32px;font-weight:400;letter-spacing:0;
+  line-height:.9;text-transform:uppercase;
+}
+.home-nothing .muted{color:var(--label-2)}
+
+.home-nothing .week{
+  gap:0;margin:4px -6px 2px;padding:2px 0;
+}
+.home-nothing .wday{
+  position:relative;border-radius:0;padding:9px 0 10px;
+}
+.home-nothing .wday + .wday::before{
+  content:'';position:absolute;inset-inline-start:0;top:22%;bottom:22%;
+  width:1px;background:var(--n-line);
+}
+.home-nothing .wday .lbl{
+  font-family:var(--n-body);font-size:9.5px;font-weight:500;letter-spacing:.02em;
+  color:var(--label-3);
+}
+.home-nothing .wday .num{
+  font-family:var(--n-body);font-size:15px;font-weight:500;letter-spacing:-.02em;
+  color:var(--label-2);margin:6px 0;
+}
+.home-nothing .wday .dot.plan{background:#4a4d4d}
+.home-nothing .wday .dot.ovr{background:var(--green)}
+.home-nothing .wday .dot.done{background:var(--acc)}
+.home-nothing .wday .dot.noted{background:var(--green)}
+.home-nothing .wday.today .num{
+  width:30px;height:30px;margin:3px auto;border-radius:50%;
+  background:var(--acc);color:#fff;font-weight:700;
+}
+.home-nothing .wday:active{background:var(--surface-2)}
+
+.home-nothing .row.between .small.muted{
+  font-family:var(--n-body);font-size:10px;font-weight:500;letter-spacing:.02em;
+  color:var(--label-3);
+}
+.home-nothing .wkleft{
+  font-family:var(--n-body);font-size:10px;font-weight:500;letter-spacing:.02em;
+  color:var(--label-3);margin-top:10px;
+}
+.home-nothing .wkleft.done{color:var(--acc)}
+.home-nothing .wk-nav{
+  flex:none;width:30px;height:30px;padding:0;
+  background:none;border:0;border-radius:50%;
+  font-family:var(--n-body);font-size:18px;line-height:1;color:var(--label-2);
+}
+.home-nothing .wk-nav:active{background:var(--surface-2)}
+
+.home-nothing .today-row{
+  background:var(--surface);border:0;border-radius:16px;
+  padding:0;margin-top:14px;
+  align-items:center;
+}
+.home-nothing .today-row .tag{padding:7px 15px;font-size:11px}
+/* The Start pill: the card's one filled action, so it is a real button and not the row's tap.
+   It keeps the width the old Start tag had (108 px at least) and never stretches like a .btn
+   does elsewhere in the app. */
+.home-nothing .today-row .btn{
+  width:auto;flex:none;padding:12px 32px;min-width:108px;
+  font-size:13px;font-weight:500;letter-spacing:.02em;
+}
+.home-nothing .today-row:has(.today-main:active){background:var(--surface-2)}
+.home-nothing .lrow-i{
+  border-radius:10px;border:1px solid rgba(255,255,255,.08);
+  background:var(--surface-3);
+}
+.home-nothing .lrow-i .icn{color:var(--acc)}
+.home-nothing .today-row .ttl{
+  font-family:var(--n-head);font-size:var(--fs-title3);font-weight:400;letter-spacing:.01em;line-height:1.15;
+}
+.home-nothing .today-row .ss{color:var(--label-3)}
+
+.home-nothing .tag{
+  font-family:var(--n-body);font-size:9.5px;font-weight:600;letter-spacing:.02em;
+  border-radius:999px;padding:4px 9px;
+  background:transparent;border:1px solid var(--n-line-2);color:var(--label-2);
+}
+.home-nothing .tag.acc{background:var(--red);border-color:var(--red);color:#fff}
+
+.home-nothing .chip{
+  font-family:var(--n-body);font-size:10.5px;font-weight:500;letter-spacing:.02em;
+  border-radius:999px;
+  background:transparent;border:1px solid var(--n-line-2);color:var(--label-2);
+}
+.home-nothing .chip.on{background:var(--red);border-color:var(--red);color:#fff}
+
+.home-nothing .btn{
+  border-radius:999px;background:#2b2d30;border:1px solid #3a3d40;color:#ffffff;
+  font-weight:600;letter-spacing:.02em;
+}
+.home-nothing .btn.primary,.home-nothing .btn.tinted,.home-nothing .btn.danger{background:var(--red);border-color:var(--red);color:#fff}
+.home-nothing .btn.primary:active,.home-nothing .btn.tinted:active,.home-nothing .btn.danger:active{background:#a40d26;border-color:#a40d26}
+.home-nothing .btn.primary:disabled,.home-nothing .btn.tinted:disabled,.home-nothing .btn.danger:disabled{
+  opacity:1;background:var(--surface-2);border-color:var(--surface-2);color:var(--label-3);pointer-events:none;
+}
+.home-nothing .btn.ghost,
+.home-nothing .btn.plain{background:none;border-color:transparent}
+.home-nothing .btn.plain{color:var(--label-2)}
+.home-nothing .btn.ghost.dim,
+.home-nothing .btn.plain.dim{color:var(--label-3)}
+
+.home-nothing .empty{color:var(--label-3)}
+
+@supports not (color: color-mix(in srgb, red 50%, blue)){
+  .home-nothing{--acc-soft:rgba(200,16,46,.16);--acc-line:rgba(200,16,46,.4)}
+}
+
+/* ---- Habits card (slice 2a, components/HabitsCard.jsx) ---- */
+.habits-row{align-items:center}
+.habit-check{flex:none;width:34px;height:34px;border-radius:99px;display:inline-flex;align-items:center;justify-content:center;
+  background:transparent;color:var(--label-3);border:0;padding:0}
+.habit-check:active{transform:scale(.9)}
+.habit-check.on{color:var(--teal)}
+.habits-name{background:transparent;border:0;padding:0;color:inherit;min-width:0}
+.habits-name>div:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.habits-streak{gap:3px;color:var(--label-2)}
+@media (max-width:430px){
+  .habits-row{gap:8px}
+}

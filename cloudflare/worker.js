@@ -32,7 +32,7 @@ export default {
     }
 
     if (request.method !== 'GET' && request.method !== 'HEAD') {
-      return new Response('openGym is offline right now, try again in a few minutes.', {
+      return new Response('JelloGym is offline right now, try again in a few minutes.', {
         status: 503,
         headers: { 'retry-after': '120' },
       })
@@ -75,7 +75,7 @@ export async function failover(env, deps = {}) {
   const checks = deps.checks || 4
   const gap = deps.gap ?? 15000
   const pattern = env.ROUTE_PATTERN || 'opengym.ch/*'
-  const script = env.SCRIPT_NAME || 'opengym'
+  const script = env.SCRIPT_NAME || 'jellogym'
   const origin = env.ORIGIN || 'https://opengym.ch'
   if (!env.CF_API_TOKEN || !env.ZONE_ID) {
     console.log('failover: CF_API_TOKEN or ZONE_ID missing, doing nothing')

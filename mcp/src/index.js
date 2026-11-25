@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-/* openGym MCP server — stdio transport. The LLM client (Claude Desktop, Cursor, …) spawns
+/* JelloGym MCP server — stdio transport. The LLM client (Claude Desktop, Cursor, …) spawns
    this process locally, talks JSON-RPC over stdin/stdout, tears it down when the session ends.
    No extra container. The read tools make no network call; log_workout, once paired, talks to
-   your own openGym server and nothing else — your data stays in a folder you control. */
+   your own JelloGym server and nothing else — your data stays in a folder you control. */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { TOOLS } from './tools.js'
@@ -10,19 +10,19 @@ import { WRITE_TOOLS } from './write-tools.js'
 import { init, getUser } from './state.js'
 
 const server = new McpServer({
-  name: 'opengym',
+  name: 'jellogym',
   version: '0.1.0'
 })
 
-// Fail fast on bad config so a misnamed OPENGYM_DATA doesn't silently answer every call with
+// Fail fast on bad config so a misnamed JELLOGYM_DATA doesn't silently answer every call with
 // the no-state sentinel. Always register every tool so the LLM sees the full list at
 // handshake, even when state didn't resolve.
 try {
   init()
   const u = getUser()
-  console.error(`[opengym-mcp] serving profile ${u.name} (${u.id})`)
+  console.error(`[jellogym-mcp] serving profile ${u.name} (${u.id})`)
 } catch (e) {
-  console.error(`[opengym-mcp] ${e.message}`)
+  console.error(`[jellogym-mcp] ${e.message}`)
   // Don't exit — keep the tool listings up so the user sees a useful error after fixing their
   // env and restarting.
 }

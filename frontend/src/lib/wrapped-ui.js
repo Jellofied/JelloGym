@@ -8,4 +8,3 @@ export const useWrappedUI = create(set => ({
   close: () => set({ year: null }),
 }))
 export const openWrapped = year => useWrappedUI.getState().open(year)
-export const closeWrapped = () => useWrappedUI.getState().close()

@@ -1,13 +1,13 @@
-/* Two copies of the account state, one merged copy.
+﻿/* Two copies of the account state, one merged copy.
  *
  * The server refuses a push over a document the device never saw (PUT /api/data with a stale
  * `baseRev` answers 409 and hands back the current document). Before revisions the newer `_ts`
- * simply replaced the other copy wholesale — which is exactly how a desktop tab that sat open
+ * simply replaced the other copy wholesale â€” which is exactly how a desktop tab that sat open
  * all day dropped the workout the phone logged in the meantime. The merge keeps both sides'
  * entries and lets the newer copy decide everything that has no natural union.
  *
  * Rules, by field:
- *   - scalars and settings, `week`, `dayPlan`, `wc`, `reminder`, `queue`, `rotation`, …: each from
+ *   - scalars and settings, `week`, `dayPlan`, `wc`, `reminder`, `queue`, `rotation`, â€¦: each from
  *     the copy that changed it last by its own stamp in `edited` (stampEdits; `week`, `dayPlan`,
  *     exNotes and barWeights per day or per exercise, `programmes` per programme, `modules` per module), from the copy with the newer `_ts` when
  *     neither side stamped it or on a tie
@@ -16,21 +16,21 @@
  *     from the side that changed it last by its own stamp (`_f`, stampEntry / mergeEntry), the
  *     version edited last for every field neither side stamped
  *   - customEx: union by id; of an id that both have, the version edited last by its own `_ts`
- *     (stampCustomEx), the newer copy's on a tie — a photo or link added on one device must not
+ *     (stampCustomEx), the newer copy's on a tie â€” a photo or link added on one device must not
  *     be lost to the other's copy just because that one logged a set since
  *   - workouts: union by id; of an id that both have, the version edited last by its own `_ts`
- *     (stampWorkout — a workout changed after it was logged: its sets edited, moved to another
+ *     (stampWorkout â€” a workout changed after it was logged: its sets edited, moved to another
  *     day, its length or note corrected), the newer copy's on a tie; sorted by day and start
  *     like every other writer. Its `media` list is the exception: the union by hash of both
  *     copies' lists (the kept version's in its order, then the other's extras), so a photo added
- *     on one device survives the other's edit of the same workout — or its own photo
+ *     on one device survives the other's edit of the same workout â€” or its own photo
  *     (mergeWorkoutMedia)
  *   - routines: union by id in the newer copy's order, a routine only the older copy has next to
  *     its neighbour there (unionByNeighbours); of an id that both have, the version
  *     edited last by its own `_ts` (stampRoutines), the newer copy's on a tie
  *   - bodyweight, measurements: union by day, the later-edited (`t`) entry of a day that both have
  *   - favEx: ordered set union, the newer copy first
- *   - exWeights: union by exercise, the better `w` for that exercise — larger for an ordinary
+ *   - exWeights: union by exercise, the better `w` for that exercise â€” larger for an ordinary
  *     lift, smaller on an assistance machine (a PR logged on the other device must not be
  *     forgotten, whichever way it runs). An exercise in a workout whose edited version was kept
  *     is the exception: the edit may have taken away the set the kept weight came from, so it
@@ -48,22 +48,22 @@
  *
  *   - Units. Every weight in a copy is in its `unit`, so two copies in different units are never
  *     merged number by number: one is brought into the other's unit first (sameUnit). The unit
- *     that stays is the one chosen last — `unitSet.at`, stamped by a unit switch — or, with no
+ *     that stays is the one chosen last â€” `unitSet.at`, stamped by a unit switch â€” or, with no
  *     stamp to tell, the newer copy's; with `prefer`, the preferred side's. A switch that only
  *     changed the label (`unitSet.convert === false`: the numbers were in the new unit all along)
  *     relabels the other copy instead of converting it. A copy converted to lb on one device used
  *     to meet the other device's kg copy and come back as kg with lb numbers under it.
  *   - Reset. "Reset everything" stamps the empty copy with `resetAt` and with `resetIds`: the keys
- *     of every entry it wiped — workouts, routines, custom exercises, weigh-ins (day and entry
+ *     of every entry it wiped â€” workouts, routines, custom exercises, weigh-ins (day and entry
  *     time), gym cards, equipment profiles, favourites, notes, bar weights and the stamped
- *     settings maps — of this device's copy and of the server's (resetIdsOf). A copy that has not
+ *     settings maps â€” of this device's copy and of the server's (resetIdsOf). A copy that has not
  *     seen that reset (an older or no `resetAt`) loses exactly those entries and keeps everything
  *     else, whatever its dates say: a CSV or Apple Health import of old sessions, a device whose
  *     clock runs behind, an entry with no date at all (sinceReset). Only a reset stamped before
  *     `resetIds` existed falls back to judging by time. The reset copy's settings and plan win
  *     whatever the `_ts`. `resetAt` only ever moves forward: the merge keeps the later one (with
  *     its ids; the union of both for the same reset; with `prefer`, the preferred side's), and so do a replace in
- *     the store and the server's PUT — a restored backup that carried no stamp would otherwise be
+ *     the store and the server's PUT â€” a restored backup that carried no stamp would otherwise be
  *     taken for a copy older than the reset and wiped again. Before, a device with an unsent
  *     change got the 409, merged, and its union brought the whole wiped profile back. Not with
  *     `prefer`: a sign-in adds what a device logged signed out, which is not a copy of this
@@ -88,16 +88,18 @@ import { applyExerciseMerges } from './exercise-merge.js'
 const clone = o => JSON.parse(JSON.stringify(o))
 const list = v => (Array.isArray(v) ? v : [])
 // The maps whose every entry carries its own edit time (mergeStampedMap). dayNotes is a day's
-// note on a day off (lib/day-notes.js), one entry per date.
+// note per day (lib/day-notes.js), one entry per date.
 // dayPhotos is a progress photo filed under a day (lib/day-photos.js), one entry per photo.
-export const STAMPED_MAPS = ['balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'exUnit', 'dayNotes', 'dayPhotos', 'exMerged']
+// water is a drink logged against a day (lib/water.js), one entry per drink. habitDefs is a habit's
+// definition and habitLogs its check-ins (lib/habits.js), one entry per habit and per check.
+export const STAMPED_MAPS = ['balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'exUnit', 'dayNotes', 'dayPhotos', 'exMerged', 'water', 'habitDefs', 'habitLogs', 'steps', 'sleep', 'badges', 'freezeUsed', 'food', 'savedFoods']
 
 /** The copy with the later `_ts`; on a tie the first argument (callers pass local first). */
 export const newerOf = (a, b) => ((b?._ts || 0) > (a?._ts || 0) ? b : a)
 
 /**
  * Entries of `newer` in their order, then those of `older` whose key nothing in `newer` has.
- * Same key → `newer`'s entry. Duplicate keys within one list are dropped (first wins).
+ * Same key â†’ `newer`'s entry. Duplicate keys within one list are dropped (first wins).
  */
 export function unionById(newer = [], older = [], key = x => x?.id) {
   const seen = new Set()
@@ -142,11 +144,11 @@ const workoutKey = w => (w?.id != null ? w.id : `${w?.d}|${w?.start}`)
  * The photos and videos of a workout both copies have: `kept`'s list as it stands (its order,
  * its refs), then every ref of `other`'s list whose hash `kept` lacks. Whole-record merging lost a
  * photo added on one device whenever the other edited that workout's note, date or length, or
- * added a photo of its own, later — the other copy's version was kept, and with it its list.
+ * added a photo of its own, later â€” the other copy's version was kept, and with it its list.
  *
  * The price is the file's known limit, one field in: with no record of what was removed, a photo
  * taken off on one device inside the conflict window comes back from the other copy that still
- * lists it — a resurrected photo is one tap to remove again, a lost one is gone. A removal the
+ * lists it â€” a resurrected photo is one tap to remove again, a lost one is gone. A removal the
  * other device has already pulled sticks, since neither copy lists it any more. Refs are carried
  * as they are; readers normalise and cap (workoutMediaOf). Mutates and returns `kept`.
  */
@@ -180,7 +182,7 @@ export function mergeBodyweight(a = [], b = [], mode = 'first') {
   for (const e of [...list(a), ...list(b)]) {
     if (!e || e.d == null) continue
     const cur = byDay.get(e.d)
-    // A weigh-in typed into openGym beats one read from the phone's health hub (`src`, lib/health-read.js)
+    // A weigh-in typed into JelloGym beats one read from the phone's health hub (`src`, lib/health-read.js)
     // whichever is newer: the scale's reading is the fallback, never a correction of the user's own.
     if (!cur) byDay.set(e.d, e)
     else {
@@ -191,7 +193,7 @@ export function mergeBodyweight(a = [], b = [], mode = 'first') {
   return [...byDay.values()].sort((x, y) => (x.d < y.d ? -1 : 1))
 }
 
-// The kept load per exercise. "The larger one wins" held while the app only ever raised it —
+// The kept load per exercise. "The larger one wins" held while the app only ever raised it â€”
 // but an assistance machine progresses downwards, so there the smaller number is the newer,
 // harder setting and taking the larger would hand back the help the other device just dropped
 // (issue #232). `beatsWeight` knows which way round each exercise runs; the date breaks a tie
@@ -206,7 +208,7 @@ function mergeExWeights(n = {}, o = {}) {
 }
 
 // The kept load of an exercise that a kept workout edit touched (see mergeStates): the best set in
-// the merged history, or the editing copy's own kept load when that is better still — the other
+// the merged history, or the editing copy's own kept load when that is better still â€” the other
 // copy's may be the very typo the edit corrected. `sources` are the exWeights of each copy whose
 // edit was kept. Nothing left to read removes the key, as the edit itself did.
 function correctedExWeight(id, workouts, sources) {
@@ -220,8 +222,8 @@ function correctedExWeight(id, workouts, sources) {
 }
 
 /**
- * Stamps `_ts` on a saved workout changed after it was logged — its sets edited, moved to another
- * day or time, its length or its note corrected — the edit time mergeStates needs to keep the
+ * Stamps `_ts` on a saved workout changed after it was logged â€” its sets edited, moved to another
+ * day or time, its length or its note corrected â€” the edit time mergeStates needs to keep the
  * version edited last, the way stampRoutines does for a plan. Without it the copy that was newer
  * as a whole decided: a phone that logged a weigh-in after the desktop corrected a workout brought
  * the uncorrected one back on the next conflict. Mutates and returns `w`.
@@ -458,8 +460,8 @@ export function mergeEntry(a, b) {
 }
 
 /**
- * A settings map whose entries carry their own edit time (`{ …, _ts }`), such as the Structural
- * Balance overrides or the plate-loading choices: every key of either side, and of a key both have, the entry set last — the
+ * A settings map whose entries carry their own edit time (`{ â€¦, _ts }`), such as the Structural
+ * Balance overrides or the plate-loading choices: every key of either side, and of a key both have, the entry set last â€” the
  * same rule a routine follows. Taking the newer copy's entry lost a choice made on one device
  * whenever the other had since logged a set; a plain key union brought a cleared entry back
  * from the side that still had it. So a clear is written as a stamped entry, not a delete, and
@@ -487,7 +489,7 @@ export function inUnitOf(follow, lead) {
   return convertStateUnit({ ...follow, unit: unitOf(follow) }, to)
 }
 
-/** When the entries of a copy were made — what sinceReset holds against a reset without ids. */
+/** When the entries of a copy were made â€” what sinceReset holds against a reset without ids. */
 const workoutTime = w => Number(w?._ts) || Number(w?.end) || Number(w?.start) || 0
 
 // What a reset records of the entries it wiped (resetIds), by field: how an entry is named.
@@ -497,9 +499,9 @@ const RESET_LISTS = {
   measurements: bodyweightKey, gymCards: x => x?.id, equipProfiles: x => x?.id, favEx: x => x,
 }
 const RESET_MAPS = ['exNotes', 'barWeights', 'exAliases', 'programmes', ...STAMPED_MAPS]
-/** An entry's name in resetIds: a workout's id (or day and start), a weigh-in's day and time, … */
+/** An entry's name in resetIds: a workout's id (or day and start), a weigh-in's day and time, â€¦ */
 export const entryKey = (field, x) => String(RESET_LISTS[field](x))
-// Per field, the most names a reset keeps — far more workouts than anyone logs, and a bound on
+// Per field, the most names a reset keeps â€” far more workouts than anyone logs, and a bound on
 // the document all the same. Past it the oldest names go first.
 export const RESET_ID_MAX = 20000
 const capIds = xs => (xs.length > RESET_ID_MAX ? xs.slice(xs.length - RESET_ID_MAX) : xs)
@@ -514,7 +516,7 @@ export function mergeResetIds(a, b) {
   return out
 }
 
-/** The names of every entry the given copies hold — what a reset wipes (see the file's header). */
+/** The names of every entry the given copies hold â€” what a reset wipes (see the file's header). */
 export function resetIdsOf(...copies) {
   let out = {}
   for (const S of copies) {
@@ -589,7 +591,7 @@ export function sinceReset(S, at, ids) {
 
 // ---- Deletions (`deleted`) ------------------------------------------------------------------
 //
-//   S.deleted = { workouts: { <key>: at }, routines: {…}, customEx, bodyweight, gymCards,
+//   S.deleted = { workouts: { <key>: at }, routines: {â€¦}, customEx, bodyweight, gymCards,
 //                 equipProfiles, favEx }
 //
 // A positive `at` is when the entry was removed on some device; a negative one (-at) is when it
@@ -704,7 +706,7 @@ function applyDeletions(S, deleted) {
 
 // ---- Edit stamps (`edited`) -----------------------------------------------------------------
 //
-//   S.edited = { restSec: at, queue: at, rotation: at, 'week.3': at, 'dayPlan.2026-10-08': at, … }
+//   S.edited = { restSec: at, queue: at, rotation: at, 'week.3': at, 'dayPlan.2026-10-08': at, â€¦ }
 //
 // When each setting, and each day of the plan, was last changed on some device. The store writes
 // them on every change (stampEdits, useStore update) and the merge takes each one from the copy
@@ -715,7 +717,7 @@ function applyDeletions(S, deleted) {
 const OWN_MERGE = new Set([
   '_ts', '_rev', '_wid', '_wids', '_unstamped', '_prior', 'active', 'unit', 'unitSet', 'resetAt', 'resetIds', 'deleted', 'edited', 'undone', 'routineOrder',
   'workouts', 'routines', 'customEx', 'equipProfiles', 'gymCards', 'bodyweight', 'measurements', 'favEx',
-  'exWeights', 'balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'exUnit', 'dayNotes', 'dayPhotos', 'exMerged',
+  'exWeights', 'balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'exUnit', 'dayNotes', 'dayPhotos', 'exMerged', 'water', 'habitDefs', 'habitLogs', 'steps', 'sleep', 'badges', 'freezeUsed', 'food', 'savedFoods',
 ])
 // Stamped per key instead of whole: one day of the plan, one exercise's note or bar, one programme
 // (lib/programmes.js; the running one, `programme`, is a plain setting).
@@ -836,7 +838,7 @@ export function mergeStates(a0, b0, { prefer } = {}) {
   }
   // The reset stamp only moves forward, with the names it wiped. With `prefer` it is the
   // preferred side's: a reset made on a guest copy, or on a phone in local mode, wiped that copy,
-  // not the account it signs in to — carried over, it made every other device of the account drop
+  // not the account it signs in to â€” carried over, it made every other device of the account drop
   // its unsent settings and plan as if the account had been reset (a backup import keeps the
   // stamp of the copy it replaces on its own, keepReset).
   const resetAt = prefer ? (prefer === 'a' ? ra : rb) : Math.max(ra, rb)
@@ -857,7 +859,7 @@ export function mergeStates(a0, b0, { prefer } = {}) {
   if (unitBy.unitSet) out.unitSet = clone(unitBy.unitSet)
   out.workouts = unionById(n.workouts, o.workouts, workoutKey).map(clone)
   // A workout edited after it was logged keeps the version edited last, whichever copy is newer
-  // as a whole — the same rule as a routine's. `editedBy` notes, per exercise, the copies whose
+  // as a whole â€” the same rule as a routine's. `editedBy` notes, per exercise, the copies whose
   // edit of its sets was kept, for the kept loads below. `prefer` (sign-in) keeps the preferred
   // side's version as it is.
   const editedBy = new Map()
@@ -883,7 +885,7 @@ export function mergeStates(a0, b0, { prefer } = {}) {
       return kept
     })
   }
-  // Of a workout both copies have, the kept version's media list gains the other's extras — with
+  // Of a workout both copies have, the kept version's media list gains the other's extras â€” with
   // `prefer` too: signing in must not drop a photo added while signed out any more than a
   // conflict may.
   {
@@ -908,7 +910,7 @@ export function mergeStates(a0, b0, { prefer } = {}) {
   }
   // A routine edited on both sides keeps the version edited last. Taking the newer copy's
   // version dropped a plan edit made on one device whenever the other had since logged a set or
-  // flipped a setting — its whole copy was newer, its version of that routine was not. `prefer`
+  // flipped a setting â€” its whole copy was newer, its version of that routine was not. `prefer`
   // (sign-in) keeps the preferred side's plan as it is.
   // Field by field (mergeEntry): a routine's sets changed on one device and its name on the other
   // are both kept. The same for a custom exercise (a photo added on one device survives a rename
@@ -1008,7 +1010,7 @@ export function mergeStates(a0, b0, { prefer } = {}) {
 
 /**
  * `next` replacing `cur` wholesale (a backup import, a reset) never takes the reset stamp back:
- * the later `resetAt` stays, with its names — a restored backup that carried none would otherwise
+ * the later `resetAt` stays, with its names â€” a restored backup that carried none would otherwise
  * be taken, on every device that saw the reset, for a copy from before it and wiped again.
  * Mutates and returns `next`.
  */
@@ -1208,7 +1210,7 @@ export function stampChange(prev, next, wall = Date.now()) {
 const sameRoutine = (a, b) => JSON.stringify({ ...a, _ts: 0, _f: 0, _u: 0 }) === JSON.stringify({ ...b, _ts: 0, _f: 0, _u: 0 })
 
 /**
- * Stamps `_ts` on every routine of `next` that is new or differs from its version in `prev` — the
+ * Stamps `_ts` on every routine of `next` that is new or differs from its version in `prev` â€” the
  * edit time mergeStates needs to keep the routine edited last. The store runs it on every change
  * (useStore update), so no screen that edits a plan has to remember to. Mutates and returns `next`.
  */
@@ -1227,7 +1229,7 @@ const sameEntry = (a, b) => JSON.stringify({ ...a, _ts: 0, _f: 0, _u: 0 }) === J
 
 /**
  * Stamps `_ts` on every custom exercise of `next` that is new or differs from its version in
- * `prev`, the way stampRoutines does for a plan — the edit time mergeStates needs to keep the
+ * `prev`, the way stampRoutines does for a plan â€” the edit time mergeStates needs to keep the
  * version edited last. The store runs it on every change (useStore update). Mutates and returns
  * `next`.
  */
@@ -1247,7 +1249,7 @@ export function stampEntries(prev = [], next = [], now = Date.now()) { return st
 // What `local` holds that `server` does not: the workouts and weigh-ins a device logged while it
 // was signed out, and the custom exercises they use. Sign-in asks about these before the server's
 // profile replaces the local copy; zero of each means there is nothing to ask about.
-// A weigh-in on a day the server has one too counts when it differs and was entered later — the
+// A weigh-in on a day the server has one too counts when it differs and was entered later â€” the
 // one "Add them" keeps (mergeBodyweight). Counted only on days the server lacked, a weigh-in
 // made on the phone on a day the profile already had one was dropped without the question ever
 // being asked. Weights are compared in the server's unit.

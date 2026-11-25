@@ -49,7 +49,7 @@ async function localPhone() {
     active: { id: 'run', d: '2026-10-14', start: 4000, cur: 0, entries: [{ id: '0025', target: { mode: 'reps' }, sets: [{ w: 60, r: 8, done: false }, { w: 60, r: 8, done: false }] }] } }
   h.files.clear()
   localStorage.clear()
-  h.files.set('DATA/opengym-remote.json', JSON.stringify({ mode: 'local' }))
+  h.files.set('DATA/jellogym-remote.json', JSON.stringify({ mode: 'local' }))
   h.files.set('DATA/opengym-state.json', JSON.stringify(S))
   localStorage.setItem('gym_state_v1', JSON.stringify(S))
   localStorage.setItem('gym_guest', '1')
@@ -75,7 +75,7 @@ describe('a phone with no server', { timeout: 30000 }, () => {
     useStore.getState().update(s => { s.active.entries[0].sets[0].done = true })
     await tick()                                    // far less than the 800 ms of other changes
     expect(readFile('opengym-state.json').active.entries[0].sets.map(x => x.done)).toEqual([true, false])
-    expect(h.files.has('DATA/opengym-state.next.json')).toBe(false)
+    expect(h.files.has('DATA/jellogym-state.next.json')).toBe(false)
   })
 
   it('a finished workout is in the file at once too', async () => {

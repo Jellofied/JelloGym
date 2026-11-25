@@ -1,4 +1,4 @@
-// "Your year in openGym": the year as full-screen stories, tap or swipe through, every card a
+// "Your year in JelloGym": the year as full-screen stories, tap or swipe through, every card a
 // picture to share. Loaded only when opened (App.jsx), so the rest of the year it costs nothing.
 // The numbers come from lib/wrapped.js, the words from lib/wrapped-cards.js, the pictures are
 // drawn on the device by the same layout (components/ShareCard.jsx). Nothing is sent anywhere.
@@ -102,7 +102,7 @@ export default function Wrapped() {
   const S = useStore(s => s.S)
   const update = useStore(s => s.update)
   const lang = useLang()
-  const st = useMemo(() => (year ? yearStats(S, year) : null), [year, S.workouts, S.bodyweight, S.unit, S.weekStart, S.wrappedBody, S.exUnit]) // eslint-disable-line react-hooks/exhaustive-deps
+  const st = useMemo(() => (year ? yearStats(S, year) : null), [year, S.workouts, S.bodyweight, S.unit, S.weekStart, S.wrappedBody, S.exUnit, S.modules, S.water, S.habitLogs, S.habitDefs, S.steps, S.sleep, S.food]) // eslint-disable-line react-hooks/exhaustive-deps
   const cards = useMemo(() => wrappedCards(st, S), [st, lang]) // eslint-disable-line react-hooks/exhaustive-deps
   const [i, setI] = useState(0)
   const [dir, setDir] = useState(1)
@@ -172,12 +172,12 @@ export default function Wrapped() {
   const share = c => {
     const body = S.body
     useUI.getState().openSheet(closeSheet => <ShareCardSheet title={t('Share this card')} close={closeSheet} toast={m => useUI.getState().toast(m)}
-      name={`opengym-${year}-${c.id}.png`} shareTitle={t('Your {0} in openGym', String(year))}
+      name={`jellogym-${year}-${c.id}.png`} shareTitle={t('Your {0} in JelloGym', String(year))}
       render={pref => wrappedCardImage(c, { ...pref, year, body })} />)
   }
   const hideBody = () => update(s => { s.wrappedBody = false })
   const last = idx === cards.length - 1
-  return <div className={'wrapped' + (still ? ' still' : '')} ref={root} role="dialog" aria-modal="true" aria-label={t('Your {0} in openGym', String(year))}>
+  return <div className={'wrapped' + (still ? ' still' : '')} ref={root} role="dialog" aria-modal="true" aria-label={t('Your {0} in JelloGym', String(year))}>
     <div className="wr-glow" aria-hidden="true"><i /><i /><i /></div>
     <div className="wr-top">
       <div className="wr-progress" aria-hidden="true">

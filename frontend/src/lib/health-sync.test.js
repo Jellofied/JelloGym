@@ -44,7 +44,7 @@ const workout = (id, d) => ({ id, d: `2026-09-${d}`, start: at(d, 18), end: at(d
 const state = (workouts, bodyweight = []) => ({ unit: 'kg', workouts, bodyweight })
 const writes = () => h.calls.filter(c => c[0] === 'write').map(c => c[1])
 const removes = () => h.calls.filter(c => c[0] === 'remove').map(c => c[1])
-const file = () => JSON.parse(h.files.get('opengym-health.json') || 'null')
+const file = () => JSON.parse(h.files.get('jellogym-health.json') || 'null')
 
 let hs
 beforeEach(async () => {
@@ -58,7 +58,7 @@ describe('off (the default)', () => {
     await hs.loadHealth()
     await hs.syncHealth(state([workout('w1', 17)]))
     expect(h.calls).toEqual([])
-    expect(h.files.has('opengym-health.json')).toBe(false)
+    expect(h.files.has('jellogym-health.json')).toBe(false)
   })
 })
 
@@ -68,10 +68,10 @@ describe('turning it on', () => {
     expect(r.ok).toBe(true)
     expect(h.calls[0]).toEqual(['request'])
     expect(writes()).toHaveLength(1)
-    expect(writes()[0].sessions.map(s => s.id)).toEqual(['opengym-w-w1'])
-    expect(writes()[0].weights.map(s => s.id)).toEqual(['opengym-bw-2026-09-17'])
+    expect(writes()[0].sessions.map(s => s.id)).toEqual(['jellogym-w-w1'])
+    expect(writes()[0].weights.map(s => s.id)).toEqual(['jellogym-bw-2026-09-17'])
     expect(file().on).toBe(true)
-    expect(Object.keys(file().written)).toEqual(['opengym-w-w1', 'opengym-bw-2026-09-17'])
+    expect(Object.keys(file().written)).toEqual(['jellogym-w-w1', 'jellogym-bw-2026-09-17'])
   })
   it('stays off when the permissions are not granted', async () => {
     h.grant = false
@@ -99,25 +99,25 @@ describe('keeping in step', () => {
     expect(h.calls).toEqual([])
 
     await hs.syncHealth(state([workout('w1', 17), workout('w2', 18)]))
-    expect(writes().map(w => w.sessions.map(s => s.id))).toEqual([['opengym-w-w2']])
+    expect(writes().map(w => w.sessions.map(s => s.id))).toEqual([['jellogym-w-w2']])
 
     h.calls = []
     await hs.syncHealth({ ...state([workout('w2', 18)]), deleted: { workouts: { w1: at(20, 9) } } })
     expect(writes()).toEqual([])
-    expect(removes()).toEqual([{ sessions: ['opengym-w-w1'], weights: [] }])
-    expect(Object.keys(file().written)).toEqual(['opengym-w-w2'])
+    expect(removes()).toEqual([{ sessions: ['jellogym-w-w1'], weights: [], hydration: [] }])
+    expect(Object.keys(file().written)).toEqual(['jellogym-w-w2'])
   })
   it('remembers a refused permission, keeps what it has, and clears it once allowed again', async () => {
     await hs.enableHealth(state([workout('w1', 17)]))
     h.fail = 'permission'
     await hs.syncHealth(state([workout('w1', 17), workout('w2', 18)]))
     expect(file().error).toBe('permission')
-    expect(Object.keys(file().written)).toEqual(['opengym-w-w1'])
+    expect(Object.keys(file().written)).toEqual(['jellogym-w-w1'])
 
     h.fail = null
     await hs.syncHealth(state([workout('w1', 17), workout('w2', 18)]))
     expect(file().error).toBeNull()
-    expect(Object.keys(file().written)).toEqual(['opengym-w-w1', 'opengym-w-w2'])
+    expect(Object.keys(file().written)).toEqual(['jellogym-w-w1', 'jellogym-w-w2'])
   })
   it('runs one sync at a time and follows it with the newest state', async () => {
     await hs.enableHealth(state([]))
@@ -127,13 +127,13 @@ describe('keeping in step', () => {
     const c = hs.syncHealth(state([workout('w1', 17), workout('w2', 18), workout('w3', 19)]))
     await Promise.all([a, b, c])
     // The second call is overtaken by the third before it runs: two writes, not three.
-    expect(writes().map(w => w.sessions.map(s => s.id))).toEqual([['opengym-w-w1'], ['opengym-w-w2', 'opengym-w-w3']])
+    expect(writes().map(w => w.sessions.map(s => s.id))).toEqual([['jellogym-w-w1'], ['jellogym-w-w2', 'jellogym-w-w3']])
   })
 })
 
-// The owner, TestFlight: a workout or a weigh-in deleted in openGym goes from Apple Health too,
+// The owner, TestFlight: a workout or a weigh-in deleted in JelloGym goes from Apple Health too,
 // wherever the deletion was made, and nothing else ever does.
-describe('deleting in openGym', () => {
+describe('deleting in JelloGym', () => {
   const bw = (d, w) => ({ d: `2026-09-${d}`, w, t: at(d, 7) })
   it('takes a deleted workout and a removed weigh-in out, and rewrites an edited one', async () => {
     await hs.enableHealth(state([workout('w1', 17), workout('w2', 18)], [bw(17, 80), bw(18, 79)]))
@@ -141,8 +141,8 @@ describe('deleting in openGym', () => {
     const edited = { ...workout('w2', 18), name: 'Push, heavier' }
     await hs.syncHealth({ ...state([edited], [bw(18, 79)]), deleted: { workouts: { w1: at(20, 9) }, bodyweight: { '2026-09-17': at(20, 9) } } })
     expect(writes().map(w => w.sessions.map(s => s.title))).toEqual([['Push, heavier']])
-    expect(removes()).toEqual([{ sessions: ['opengym-w-w1'], weights: ['opengym-bw-2026-09-17'] }])
-    expect(Object.keys(file().written).sort()).toEqual(['opengym-bw-2026-09-18', 'opengym-w-w2'])
+    expect(removes()).toEqual([{ sessions: ['jellogym-w-w1'], weights: ['jellogym-bw-2026-09-17'], hydration: [] }])
+    expect(Object.keys(file().written).sort()).toEqual(['jellogym-bw-2026-09-18', 'jellogym-w-w2'])
   })
 
   it('a copy that merely lacks them (signed out, not loaded yet) removes nothing', async () => {
@@ -150,7 +150,7 @@ describe('deleting in openGym', () => {
     h.calls = []
     await hs.syncHealth(state([], []))
     expect(removes()).toEqual([])
-    expect(Object.keys(file().written).sort()).toEqual(['opengym-bw-2026-09-17', 'opengym-w-w1'])
+    expect(Object.keys(file().written).sort()).toEqual(['jellogym-bw-2026-09-17', 'jellogym-w-w1'])
     // …and back with them, nothing is written twice.
     await hs.syncHealth(state([workout('w1', 17)], [bw(17, 80)]))
     expect(h.calls).toEqual([])
@@ -161,7 +161,7 @@ describe('deleting in openGym', () => {
     await hs.syncHealth(state([workout('w2', 18)]))              // the merge has not brought the record yet
     expect(removes()).toEqual([])
     await hs.syncHealth({ ...state([workout('w2', 18)]), deleted: { workouts: { w1: at(21, 9) } } })
-    expect(removes()).toEqual([{ sessions: ['opengym-w-w1'], weights: [] }])
+    expect(removes()).toEqual([{ sessions: ['jellogym-w-w1'], weights: [], hydration: [] }])
   })
 
   it('a deletion while it was off goes once it is on again', async () => {
@@ -172,7 +172,7 @@ describe('deleting in openGym', () => {
     await hs.syncHealth(after)
     expect(h.calls.filter(c => c[0] === 'remove')).toEqual([])
     await hs.enableHealth(after)
-    expect(removes()).toEqual([{ sessions: ['opengym-w-w1'], weights: [] }])
+    expect(removes()).toEqual([{ sessions: ['jellogym-w-w1'], weights: [], hydration: [] }])
     expect(file().written).toEqual({})
   })
 
@@ -187,7 +187,7 @@ describe('deleting in openGym', () => {
     await hs.enableHealth(state([workout('w1', 17)], [bw(17, 80)]))
     h.calls = []
     await hs.syncHealth({ ...state([]), resetAt: at(22, 9), resetIds: { workouts: ['w1'], bodyweight: ['2026-09-17|' + at(17, 7)] } })
-    expect(removes()).toEqual([{ sessions: ['opengym-w-w1'], weights: ['opengym-bw-2026-09-17'] }])
+    expect(removes()).toEqual([{ sessions: ['jellogym-w-w1'], weights: ['jellogym-bw-2026-09-17'], hydration: [] }])
   })
 
   it('a refused removal is tried again on the next sync, and one Apple Health kept is not forgotten', async () => {
@@ -196,18 +196,18 @@ describe('deleting in openGym', () => {
     h.removeFail = 'permission'
     await hs.syncHealth(gone)
     expect(file().error).toBe('permission')
-    expect(Object.keys(file().written).sort()).toEqual(['opengym-w-w1', 'opengym-w-w2'])
+    expect(Object.keys(file().written).sort()).toEqual(['jellogym-w-w1', 'jellogym-w-w2'])
     h.removeFail = null
-    h.left = ['opengym-w-w2']                                   // say the watch's copy stayed
+    h.left = ['jellogym-w-w2']                                   // say the watch's copy stayed
     h.calls = []
     await hs.syncHealth(gone)
-    expect(removes()).toEqual([{ sessions: ['opengym-w-w1', 'opengym-w-w2'], weights: [] }])
-    expect(Object.keys(file().written)).toEqual(['opengym-w-w2'])
+    expect(removes()).toEqual([{ sessions: ['jellogym-w-w1', 'jellogym-w-w2'], weights: [], hydration: [] }])
+    expect(Object.keys(file().written)).toEqual(['jellogym-w-w2'])
     expect(file().error).toBeNull()
     h.left = null
     h.calls = []
     await hs.syncHealth(gone)
-    expect(removes()).toEqual([{ sessions: ['opengym-w-w2'], weights: [] }])
+    expect(removes()).toEqual([{ sessions: ['jellogym-w-w2'], weights: [], hydration: [] }])
     expect(file().written).toEqual({})
   })
 })
@@ -225,7 +225,7 @@ describe('turning it off', () => {
   it('or remove exactly what it wrote', async () => {
     await hs.enableHealth(state([workout('w1', 17)], [{ d: '2026-09-17', w: 80, t: at(17, 7) }]))
     await hs.disableHealth({ removeWritten: true })
-    expect(removes()).toEqual([{ sessions: ['opengym-w-w1'], weights: ['opengym-bw-2026-09-17'] }])
+    expect(removes()).toEqual([{ sessions: ['jellogym-w-w1'], weights: ['jellogym-bw-2026-09-17'], hydration: [] }])
     expect(file()).toMatchObject({ on: false, written: {} })
   })
 })
@@ -244,7 +244,7 @@ describe('on the iPhone', () => {
   })
   it('writes the same records, and tells the watch when it goes on and off', async () => {
     await hs.enableHealth(state([workout('w1', 17)]))
-    expect(writes()[0].sessions.map(r => r.id)).toEqual(['opengym-w-w1'])
+    expect(writes()[0].sessions.map(r => r.id)).toEqual(['jellogym-w-w1'])
     expect(h.calls.filter(c => c[0] === 'setEnabled')).toEqual([['setEnabled', true]])
     await hs.disableHealth({ removeWritten: false })
     expect(h.calls.filter(c => c[0] === 'setEnabled')).toEqual([['setEnabled', true], ['setEnabled', false]])
@@ -261,5 +261,26 @@ describe('on the iPhone', () => {
     await hs.enableHealth(state([workout('w1', 17)]))
     expect(h.calls.filter(c => c[0] === 'setEnabled')).toEqual([])
     expect((await hs.healthStatus()).platform).toBe('android')
+  })
+})
+
+describe('the file the phone keeps its health bookkeeping in', () => {
+  // The app was renamed from openGym to JelloGym, and with it the file. An upgrade that could not
+  // find the old copy would wake up believing it had never written anything, and push the whole
+  // log into Health Connect a second time beside the records already there.
+  it('adopts the copy under the old name, once, and remembers what was written', async () => {
+    h.files.set('opengym-health.json', JSON.stringify({
+      on: true, written: { 'opengym-w-w1': { k: 'session', h: 'the-fingerprint' }, 'opengym-bw-2026-09-17': { k: 'weight', h: 'other' } },
+      at: 5, readWeight: true, wCursor: 42,
+    }))
+    const loaded = await hs.loadHealth()
+    expect(loaded).toMatchObject({ on: true, at: 5, readWeight: true, wCursor: 42 })
+    expect(Object.keys(loaded.written).sort()).toEqual(['opengym-bw-2026-09-17', 'opengym-w-w1'])
+    expect(JSON.parse(h.files.get('jellogym-health.json')).written).toEqual(loaded.written)
+  })
+
+  it('a phone that never had the old file still starts clean', async () => {
+    expect(await hs.loadHealth()).toMatchObject({ on: false, written: {}, at: 0 })
+    expect(h.files.has('jellogym-health.json')).toBe(false)
   })
 })

@@ -70,7 +70,7 @@ the forgotten-workout check, animations, and a Settings page on Android (the def
 
 ```bash
 cd frontend/android
-./gradlew :wear:assembleDebug          # debug APK, ch.duartesantos.opengym.test (pairs with the phone's debug build)
+./gradlew :wear:assembleDebug          # debug APK, ch.duartesantos.jellogym.test (pairs with the phone's debug build)
 ./gradlew :wear:testDebugUnitTest      # SessionCore and the codec
 node wear/wear-strings.mjs             # the strings, from the app's and the Apple Watch's translations
 scripts/android/build-wear.sh <keystore> <password-file> <alias-file> [out]   # release AAB + APK
@@ -83,8 +83,8 @@ watch with a debug phone, a release watch with a release phone (or the Play-sign
 
 The watch app takes the phone's `versionName` and **`versionCode` = phone versionCode + 10000**
 (read from `app/build.gradle` by `wear/build.gradle`, nothing to bump by hand). Google Play keeps
-one versionCode space per app for every form factor, so the phone (30 for 1.4.4) and the watch
-(10030) never collide, and each release's watch build is newer than the last one's.
+one versionCode space per app for every form factor, so the phone (31 for 1.4.4) and the watch
+(10031) never collide, and each release's watch build is newer than the last one's.
 
 ## Google Play
 

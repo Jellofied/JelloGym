@@ -16,7 +16,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { t } from '../lib/i18n.js'
-import { fmtClip } from '../lib/media-refs.js'
+import { fmtSec } from '../lib/history.js'
 import { limitsFrom } from '../lib/media-limits.js'
 import { setLabel } from '../lib/history.js'
 import { speedUnitOf } from '../lib/speed.js'
@@ -154,7 +154,7 @@ export function FormVideoPlayer({ m, label = '', onRemove, onRefilm, compact = f
       <div className="fv-speed" role="group" aria-label={t('Playback speed')}>
         {[0.5, 1].map(r => <button key={r} type="button" className={'chip' + (rate === r ? ' on' : '')} aria-pressed={rate === r} onClick={() => setRate(r)} dir="ltr">{r === 0.5 ? '0.5×' : '1×'}</button>)}
       </div>
-      {m.dur != null && <span className="small dim" dir="ltr">{fmtClip(m.dur)}</span>}
+      {m.dur != null && <span className="small dim" dir="ltr">{fmtSec(m.dur)}</span>}
       <span style={{ flex: 1 }} />
       {onRefilm && <button type="button" className="iconbtn" aria-label={t('Film again')} title={t('Film again')} onClick={onRefilm}><Icon name="camera" /></button>}
       {onRemove && <button type="button" className="iconbtn" aria-label={t('Remove video')} title={t('Remove video')} onClick={() => setAsking(a => !a)}><Icon name="trash" /></button>}
@@ -174,7 +174,7 @@ export function SetVideoBadge({ m, open, onToggle }) {
   return <button type="button" className={'fv-badge' + (open ? ' on' : '')} aria-expanded={open} onClick={onToggle}>
     <Icon name="camera" />
     <span>{t('Form video')}</span>
-    {m.dur != null && <span className="dim" dir="ltr">{fmtClip(m.dur)}</span>}
+    {m.dur != null && <span className="dim" dir="ltr">{fmtSec(m.dur)}</span>}
     <Icon name={open ? 'chevronUp' : 'chevronDown'} />
   </button>
 }

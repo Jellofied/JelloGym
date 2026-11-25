@@ -155,7 +155,7 @@ describe('swap wording', () => {
   it('renders the swap icon on exercise card action buttons (#561)', () => {
     swapActiveWorkoutExercise(1)
     const host = renderTop()
-    const icon = host.querySelector('.list .item .iconbtn.chev svg')
+    const icon = host.querySelector('.list .item .iconbtn.chev .icn')
     expect(icon).not.toBeNull()
     expect(icon?.getAttribute('data-icon')).toBe('swap')
   })

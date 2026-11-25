@@ -34,7 +34,7 @@ public class RestAlertPlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesizerDe
         CAPPluginMethod(name: "hush", returnType: CAPPluginReturnPromise),
     ]
 
-    static let requestId = "opengym.rest"
+    static let requestId = "jellogym.rest"
     /// Timed holds that run themselves (lib/auto-holds.js): the alerts after the rest's, each its own
     /// notification. At most this many, and all of them taken back with the rest's.
     static let maxCues = 16

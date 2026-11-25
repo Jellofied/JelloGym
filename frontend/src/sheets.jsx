@@ -23,7 +23,6 @@ import { workoutSetVideos } from './lib/set-videos.js'
 import { mediaOf, normalizeMediaRef, cleanUrl, workoutMediaOf } from './lib/media-refs.js'
 import { syncMedia } from './lib/media-sync.js'
 import LineChart from './components/LineChart.jsx'
-import Stepper from './components/Stepper.jsx'
 import DateField from './components/DateField.jsx'
 import { durationSheet } from './components/DurationWheel.jsx'
 import { cleanBackups, withBackups, MAX_BACKUPS, backupSlotConfig } from './lib/routine-backups.js'
@@ -34,7 +33,7 @@ import { REST_MAX, fmtRest, restWheelValue } from './lib/duration.js'
 import Icon from './components/Icon.jsx'
 import { SeasonDeco } from './components/Seasonal.jsx'
 import { useNfcSupported, nfcExerciseSheet } from './components/Nfc.jsx'
-import { Button, Slider, Switch, Segmented, SelectRow, Row, TextField, NumberField, MultiSelectRow } from './components/ui.jsx'
+import { Button, Slider, Switch, Segmented, SelectRow, Row, TextField, NumberField, MultiSelectRow, Stepper } from './components/ui.jsx'
 import { glyphOf, GLYPH_GROUPS, DEFAULT_GLYPH } from './lib/glyphs.js'
 import BodyMap from './components/BodyMap.jsx'
 import MuscleExplorer from './components/MuscleExplorer.jsx'
@@ -42,7 +41,8 @@ import ExerciseViewToggle from './components/ExerciseViewToggle.jsx'
 import { sameMuscleFirst, swapMuscleOf } from './lib/similar-exercises.js'
 import { suggestedSubstitutes, relatedSubstitutes } from './lib/exercise-substitutes.js'
 import { exerciseMuscleSnapshot, loadOfWorkouts, MUSCLES, MUSCLE_NAME, muscleWeightsOf, muscleGroupsOf, hasExplicitMuscleMetadata, inMuscleOrder } from './lib/muscles.js'
-import { mergeImport, importHasWeighIn } from './lib/import-csv.js'
+import { mergeImport, importHasWeighIn, importWaterEntryId, importHabitEntryId, importFoodEntryId } from './lib/import-csv.js'
+import { stackOnFinish, findHabitByName } from './lib/habits.js'
 import { addWeighIn, editWeighIn, removeWeighIn, restoreWeighIn, readingsOf, readingTime, allReadings, defaultTimeFor, cleanTime, timeOf, dailyModeOf, DEFAULT_TIME } from './lib/weigh-ins.js'
 import { parseImportFile, mergeImportedRoutines, freshRoutines } from './lib/import-apps.js'
 import { importHevyData, HevyApiError, HEVY_DEV_SETTINGS, mergeHevyRoutines, hevySummaryCounts } from './lib/import-hevy.js'
@@ -113,7 +113,7 @@ const snd = () => S().sound
 // permission dialog (App Review 5.1.1(iv)); pass `locked` with it so the sheet can't be swiped away.
 function ConfirmDialog({ title, message, confirmText, cancelText, danger, noCancel, onConfirm, onCancel, close }) {
   return <div style={{ textAlign: 'center', padding: '4px 0' }}>
-    {title && <h3 style={{ marginBottom: 8 }}>{title}</h3>}
+    {title && <h3 style={{ marginBottom: 'var(--sp-2)' }}>{title}</h3>}
     <div className="muted" style={{ marginBottom: 18, lineHeight: 1.5 }}>{message}</div>
     <button className={'btn ' + (danger ? 'danger' : 'primary')} onClick={() => { close(); onConfirm && onConfirm() }}>{confirmText || t('Confirm')}</button>
     {!noCancel && <>
@@ -492,9 +492,9 @@ function WeighIns() {
       // zero says something moved when, as far as the screen goes, nothing did.
       const moved = w.delta != null && fmtNum(Math.abs(w.delta)) !== fmtNum(0)
       return <div key={w.key} data-week={w.key}>
-        <div className="row between" style={{ margin: '16px 2px 4px', gap: 8 }}>
+        <div className="row between" style={{ margin: '16px 2px 4px', gap: 'var(--sp-2)' }}>
           <span className="small" style={{ fontWeight: 600 }}>{t('Week of {0}', fmtDate(w.key))}</span>
-          <span className="small row" style={{ gap: 8 }}>
+          <span className="small row" style={{ gap: 'var(--sp-2)' }}>
             {moved && <span className="row" style={{ gap: 2, fontWeight: 500, color: bwDeltaColor(w.delta, w.avg) }}>
               <Icon name={w.delta > 0 ? 'arrowUp' : 'arrowDown'} style={{ fontSize: 'var(--fs-caption)' }} />{fmtNum(Math.abs(w.delta))}
             </span>}
@@ -532,6 +532,10 @@ const effortLine = (effort, n, scale) => effort === 'none'
 // are all on screen before the confirm button.
 function ImportSummary({ parsed, close }) {
   const st = useStore(s => s.S)
+  // A water file says little per row, so it gets its own short summary rather than the workout/body grid.
+  if (parsed.kind === 'water') return <WaterImportSummary parsed={parsed} close={close} st={st} />
+  if (parsed.kind === 'habit') return <HabitImportSummary parsed={parsed} close={close} st={st} />
+  if (parsed.kind === 'food') return <FoodImportSummary parsed={parsed} close={close} st={st} />
   const isBW = parsed.kind === 'bodyweight'
   // Our own body CSV brings measurement check-ins along (#718); a day that has one keeps it.
   const checkIns = isBW ? parsed.measurements || [] : []
@@ -562,7 +566,7 @@ function ImportSummary({ parsed, close }) {
 
   return <>
     <h3>{parsed.source ? t('Import from {0}', parsed.source) : t('Import history')}</h3>
-    <div className="muted small" style={{ marginBottom: 12 }}>
+    <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>
       {hasWorkouts && fmtDateRange(parsed.from, parsed.to, true)}
     </div>
 
@@ -605,19 +609,112 @@ function ImportSummary({ parsed, close }) {
     </div>}
     {/* A Liftosaur plan's progression is a script; it arrives as a note on each exercise. */}
     {plans?.scripted > 0 && <div className="small dim" style={{ marginBottom: 10 }}>
-      {t('Liftoscript progressions come along as notes on the exercises. openGym doesn’t run them.')}
+      {t('Liftoscript progressions come along as notes on the exercises. JelloGym doesn’t run them.')}
     </div>}
     {plans && newPlans < plans.routines.length && <div className="small dim" style={{ marginBottom: 10 }}>
       {tn('{0} routine is already here and will be left alone.', '{0} routines are already here and will be left alone.', plans.routines.length - newPlans)}
     </div>}
     {!isBW && unmatched.length > 0 && <>
       <h4 className="sec">{t('Not in the library, so they’re added as your own exercises')}</h4>
-      <div className="mchips" style={{ marginBottom: 12 }}>
+      <div className="mchips" style={{ marginBottom: 'var(--sp-3)' }}>
         {unmatched.slice(0, 12).map(n => <span key={n} className="mchip capitalize">{n}</span>)}
         {unmatched.length > 12 && <span className="mchip">+{unmatched.length - 12}</span>}
       </div>
     </>}
 
+    <Button variant="primary" onClick={doImport} disabled={!fresh}>
+      {fresh ? t('Import') : t('Nothing new to import')}
+    </Button>
+    <div style={{ height: 8 }} />
+    <Button variant="ghost" className="dim" onClick={close}>{t('Cancel')}</Button>
+  </>
+}
+
+function WaterImportSummary({ parsed, close, st }) {  // The row's own deterministic id says whether this exact drink is already here (live or removed).
+  const have = parsed.water.filter((b, k) => (st.water || {})[importWaterEntryId(b, k)] !== undefined).length
+  const fresh = parsed.water.length - have
+  const doImport = () => {
+    let res
+    update(s => { res = mergeImport(s, parsed) })
+    close()
+    toast(tn('{0} drink imported', '{0} drinks imported', res.added))
+  }
+  return <>
+    <h3>{t('Import from {0}', parsed.source)}</h3>
+    <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>{t('One row per drink, as JelloGym exports it.')}</div>
+    <div className="tiles" style={{ textAlign: 'start' }}>
+      <div className="tile"><div className="l">{t('Drinks')}</div><div className="v v-sm">{parsed.water.length}</div></div>
+      <div className="tile"><div className="l">{t('New')}</div><div className="v v-sm">{fresh}</div></div>
+    </div>
+    {have > 0 && <div className="small dim" style={{ marginBottom: 10 }}>
+      {tn('{0} drink is already here and will be left alone.', '{0} drinks are already here and will be left alone.', have)}
+    </div>}
+    {parsed.skipped > 0 && <div className="small dim" style={{ marginBottom: 10 }}>
+      {tn('{0} row skipped (couldn’t read it)', '{0} rows skipped (couldn’t read them)', parsed.skipped)}
+    </div>}
+    <Button variant="primary" onClick={doImport} disabled={!fresh}>
+      {fresh ? t('Import') : t('Nothing new to import')}
+    </Button>
+    <div style={{ height: 8 }} />
+    <Button variant="ghost" className="dim" onClick={close}>{t('Cancel')}</Button>
+  </>
+}
+
+function HabitImportSummary({ parsed, close, st }) {
+  const valueOf = e => e.skip === 1 ? 'skip' : (e.n || 0) > 0 ? String(e.n) : (e.sec || 0) > 0 ? String(Math.round(e.sec / 60)) : 'check'
+  const live = new Set()
+  for (const e of Object.values(st.habitLogs || {})) if (e && e.h) live.add(`${e.h}|${e.d}|${valueOf(e)}`)
+  const have = parsed.habits.filter(b => {
+    const def = findHabitByName(st, b.name)
+    return !!def && live.has(`${def.id}|${b.d}|${b.value}`)
+  }).length
+  const fresh = parsed.habits.length - have
+  const doImport = () => {
+    let res
+    update(s => { res = mergeImport(s, parsed) })
+    close()
+    toast(tn('{0} habit check imported', '{0} habit checks imported', res.added))
+  }
+  return <>
+    <h3>{t('Import from {0}', parsed.source)}</h3>
+    <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>{t('One row per check-in, as JelloGym exports it. Checks for habits you do not have here are left out.')}</div>
+    <div className="tiles" style={{ textAlign: 'start' }}>
+      <div className="tile"><div className="l">{t('Checks')}</div><div className="v v-sm">{parsed.habits.length}</div></div>
+      <div className="tile"><div className="l">{t('New')}</div><div className="v v-sm">{fresh}</div></div>
+    </div>
+    {have > 0 && <div className="small dim" style={{ marginBottom: 10 }}>
+      {tn('{0} check is already here and will be left alone.', '{0} checks are already here and will be left alone.', have)}
+    </div>}
+    {(parsed.skipped > 0) && <div className="small dim" style={{ marginBottom: 10 }}>
+      {tn('{0} row skipped (couldn’t read it)', '{0} rows skipped (couldn’t read them)', parsed.skipped)}
+    </div>}
+    <Button variant="primary" onClick={doImport} disabled={!fresh}>
+      {fresh ? t('Import') : t('Nothing new to import')}
+    </Button>
+    <div style={{ height: 8 }} />
+    <Button variant="ghost" className="dim" onClick={close}>{t('Cancel')}</Button>
+  </>
+}
+
+function FoodImportSummary({ parsed, close, st }) {
+  const have = parsed.food.filter((b, k) => (st.food || {})[importFoodEntryId(b, k)] !== undefined).length
+  const fresh = parsed.food.length - have
+  const doImport = () => {
+    let res
+    update(s => { res = mergeImport(s, parsed) })
+    close()
+    toast(tn('{0} meal imported', '{0} meals imported', res.added))
+  }
+  return <>
+    <h3>{t('Import from {0}', parsed.source)}</h3>
+    <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>{t('One row per logged meal, as JelloGym exports it.')}</div>
+    <div className="tiles" style={{ textAlign: 'start' }}>
+      <div className="tile"><div className="l">{t('Meals')}</div><div className="v v-sm">{parsed.food.length}</div></div>
+      <div className="tile"><div className="l">{t('New')}</div><div className="v v-sm">{fresh}</div></div>
+    </div>
+    {have > 0 && <div className="small dim" style={{ marginBottom: 10 }}>
+      {tn('{0} meal is already here and will be left alone.', '{0} meals are already here and will be left alone.', have)}
+    </div>}
     <Button variant="primary" onClick={doImport} disabled={!fresh}>
       {fresh ? t('Import') : t('Nothing new to import')}
     </Button>
@@ -636,9 +733,9 @@ export function importFromApp(file, onDone) {
     if (parsed.error === 'empty') { toast(t('That file is empty')); return }
     // It looks like that app's export but does not read as one: say so rather than guess.
     if (parsed.error === 'format') { toast(t('This looks like a {0} export, but we couldn’t read it. Nothing was imported.', parsed.app)); return }
-    if (parsed.error === 'opengym') { toast(t('That’s an openGym backup or plan file. Use Import backup, or import it on the Plan screen.')); return }
+    if (parsed.error === 'jellogym') { toast(t('That’s an JelloGym backup or plan file. Use Import backup, or import it on the Plan screen.')); return }
     if (parsed.error) { toast(t("We don't recognise that file's columns. Check the docs for supported apps.")); return }
-    if (parsed.kind === 'bodyweight' ? !parsed.bodyweight.length && !parsed.measurements?.length : !parsed.workouts.length && !parsed.routines?.routines?.length) {
+    if (parsed.kind === 'food' ? !parsed.food.length : parsed.kind === 'habit' ? !parsed.habits.length : parsed.kind === 'water' ? !parsed.water.length : parsed.kind === 'bodyweight' ? !parsed.bodyweight.length && !parsed.measurements?.length : !parsed.workouts.length && !parsed.routines?.routines?.length) {
       toast(t('Nothing to import from that file')); return
     }
     ui().openSheet(close => <ImportSummary parsed={parsed} close={close} />)
@@ -760,7 +857,7 @@ function HevyImportSheet({ close }) {
         <a href={HEVY_DEV_SETTINGS} target="_blank" rel="noopener noreferrer">{t('Get your API key')}</a>
         <span className="dim"> · {t('Hevy → Settings → Developer')}</span>
       </div>
-      {busy && <div className="small dim" style={{ marginBottom: 12 }}>{hevyProgressLabel(progress)}</div>}
+      {busy && <div className="small dim" style={{ marginBottom: 'var(--sp-3)' }}>{hevyProgressLabel(progress)}</div>}
       <Button variant="primary" onClick={fetchAccount} disabled={busy || !apiKey.trim()}>
         {busy ? t('Fetching from Hevy…') : t('Fetch from Hevy')}
       </Button>
@@ -787,7 +884,7 @@ function HevyImportSheet({ close }) {
 
   return <>
     <h3>{t('Import from Hevy')}</h3>
-    <div className="muted small" style={{ marginBottom: 12 }}>
+    <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>
       {w.from && (w.from === w.to ? fmtDate(w.from, true) : fmtDate(w.from, true) + ' – ' + fmtDate(w.to, true))}
       {!w.from && b.from && (b.from === b.to ? fmtDate(b.from, true) : fmtDate(b.from, true) + ' – ' + fmtDate(b.to, true))}
     </div>
@@ -813,14 +910,14 @@ function HevyImportSheet({ close }) {
       </div>
       <Switch checked={wantRoutines} onChange={setWantRoutines} />
     </div>}
-    {b.bodyweight.length > 0 && <div className="row between" style={{ padding: '10px 2px', borderTop: '1px solid var(--sep)', borderBottom: '1px solid var(--sep)', gap: 12, marginBottom: 8 }}>
+    {b.bodyweight.length > 0 && <div className="row between" style={{ padding: '10px 2px', borderTop: '1px solid var(--sep)', borderBottom: '1px solid var(--sep)', gap: 12, marginBottom: 'var(--sp-2)' }}>
       <div>
         <div className="tt" style={{ fontSize: 'var(--fs-subhead)' }}>{t('Import weigh-ins')}</div>
         <div className="small dim">{t('{0} new · {1} days already here', freshB, haveB)}</div>
       </div>
       <Switch checked={wantBody} onChange={setWantBody} />
     </div>}
-    {!b.bodyweight.length && <div style={{ borderBottom: '1px solid var(--sep)', marginBottom: 8 }} />}
+    {!b.bodyweight.length && <div style={{ borderBottom: '1px solid var(--sep)', marginBottom: 'var(--sp-2)' }} />}
 
     {(w.converted || r.converted) && <div className="small" style={{ color: 'var(--gold-ink)', marginBottom: 10 }}>
       {t('Hevy stores weights in kg, so they’ll be converted to {0}.', st.unit)}
@@ -830,7 +927,7 @@ function HevyImportSheet({ close }) {
     </div>}
     {unmatched.length > 0 && <>
       <h4 className="sec">{t('Not in the library, so they’re added as your own exercises')}</h4>
-      <div className="mchips" style={{ marginBottom: 12 }}>
+      <div className="mchips" style={{ marginBottom: 'var(--sp-3)' }}>
         {unmatched.slice(0, 12).map(n => <span key={n} className="mchip capitalize">{n}</span>)}
         {unmatched.length > 12 && <span className="mchip">+{unmatched.length - 12}</span>}
       </div>
@@ -885,7 +982,7 @@ function ExUnitRow({ ex, onChange }) {
     onChange?.(before, S())
   }
   return <>
-    <div className="sect-b" style={{ marginBottom: 8 }}>
+    <div className="sect-b" style={{ marginBottom: 'var(--sp-2)' }}>
       <SelectRow icon="scale" iconTint="var(--acc)" title={t('Weight unit')} sheetTitle={t('Weight unit')} value={pin || ''} onChange={set}
         options={[
           { value: '', label: t('Profile default ({0})', profileUnit(st)) },
@@ -1041,28 +1138,28 @@ function StackEditor({ ex }) {
       {t('The weights this machine really has, odd steps and all. Progression, deloads, warm-ups and the + and − buttons land only on these.')}
     </div>
     {list.length > 0
-      ? <div className="chips" style={{ flexWrap: 'wrap', overflow: 'visible', touchAction: 'auto', marginBottom: 12 }}>
+      ? <div className="chips" style={{ flexWrap: 'wrap', overflow: 'visible', touchAction: 'auto', marginBottom: 'var(--sp-3)' }}>
         {list.map(w => <button key={w} className="chip on nocap" aria-label={t('Remove {0}', fmtPlate(w) + ' ' + unit)}
           onClick={() => save(list.filter(x => x !== w))}>{fmtPlate(w)} <Icon name="xmark" /></button>)}
       </div>
-      : <div className="small dim" style={{ marginBottom: 12 }}>{t('No list yet, so this exercise steps by its increment as usual.')}</div>}
-    <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+      : <div className="small dim" style={{ marginBottom: 'var(--sp-3)' }}>{t('No list yet, so this exercise steps by its increment as usual.')}</div>}
+    <div className="row" style={{ gap: 'var(--sp-2)', marginBottom: 'var(--sp-2)' }}>
       <NumberField className="input" decimal value={draft ?? ''} onChange={v => setDraft(v)}
         aria-label={t('Weight ({0})', unit)} placeholder={t('Weight ({0})', unit)} onKeyDown={e => { if (e.key === 'Enter') add() }} />
       <Button icon="plus" onClick={add} style={{ flex: '0 0 auto', width: 'auto' }}>{t('Add')}</Button>
     </div>
     {/* An evenly spaced stack in three numbers, to fix the odd ones on after. */}
     {list.length === 0 && <>
-      <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+      <div className="row" style={{ gap: 'var(--sp-2)', marginBottom: 'var(--sp-2)' }}>
         <NumberField className="input" decimal value={first ?? ''} onChange={setFirst} aria-label={t('First ({0})', unit)} placeholder={t('First ({0})', unit)} />
         <NumberField className="input" decimal value={step ?? ''} onChange={setStep} aria-label={t('Step ({0})', unit)} placeholder={t('Step ({0})', unit)} />
       </div>
-      <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+      <div className="row" style={{ gap: 'var(--sp-2)', marginBottom: 'var(--sp-2)' }}>
         <NumberField className="input" value={count ?? ''} onChange={setCount} aria-label={t('How many')} placeholder={t('How many')} />
         <Button onClick={fill} style={{ flex: '0 0 auto', width: 'auto' }}>{t('Fill in')}</Button>
       </div>
     </>}
-    {list.length > 0 && <Button variant="danger" onClick={() => save([])} style={{ marginBottom: 8 }}>{t('Clear the list')}</Button>}
+    {list.length > 0 && <Button variant="danger" onClick={() => save([])} style={{ marginBottom: 'var(--sp-2)' }}>{t('Clear the list')}</Button>}
     <div style={{ height: 10 }} />
   </>
 }
@@ -1072,7 +1169,7 @@ function BarWeightSheet({ exId, cfg, close }) {
   const ex = exOr(exId)
   return <>
     <h3>{t('Plate loading')}</h3>
-    <div className={`muted small ${exerciseNameClass(ex)}`} style={{ marginBottom: 12 }}>{exerciseNameFor(ex)}</div>
+    <div className={`muted small ${exerciseNameClass(ex)}`} style={{ marginBottom: 'var(--sp-3)' }}>{exerciseNameFor(ex)}</div>
     <BarWeightEditor ex={ex} cfg={cfg} extra={t('Applies to this exercise everywhere, not just this plan.')} />
     {canHaveStack(ex) && <><h4 className="sec">{t('Weight stack')}</h4><StackEditor ex={ex} /></>}
     <Button variant="primary" onClick={close}>{t('Done')}</Button>
@@ -1109,7 +1206,7 @@ function GymOfList({ kind, exId = null }) {
   const pick = () => (others.length === 1 ? copy(others[0]) : menuSheet({
     title: t('Copy from'), items: others.map(o => ({ icon: 'house', label: gymLabel(o), onClick: () => copy(o) })),
   }))
-  return <div className="row between gym-of-list" style={{ gap: 8, marginBottom: 10 }}>
+  return <div className="row between gym-of-list" style={{ gap: 'var(--sp-2)', marginBottom: 10 }}>
     <span className="small muted"><Icon name="house" /> {t('At {0}', gymLabel(gym))}</span>
     {others.length > 0 && <button type="button" className="chip nocap" onClick={pick}>
       {others.length === 1 ? t('Copy from {0}', gymLabel(others[0])) : t('Copy from')}</button>}
@@ -1140,7 +1237,7 @@ function PlateInventorySheet({ close }) {
     <div className="small dim" style={{ margin: '4px 0 14px' }}>
       {own ? t('Your own list for {0}.', unit) : t('The standard set, plenty of each. Change any count to make it yours.')}
     </div>
-    {own && <Button onClick={reset} style={{ marginBottom: 8 }}>{t('Back to the standard set')}</Button>}
+    {own && <Button onClick={reset} style={{ marginBottom: 'var(--sp-2)' }}>{t('Back to the standard set')}</Button>}
     <Button variant="primary" onClick={close}>{t('Done')}</Button>
   </>
 }
@@ -1174,27 +1271,27 @@ function DumbbellInventorySheet({ close }) {
     </div>
     {/* An empty list means "any weight", not "none", so owning none is its own switch (Discord,
         deamondo). On, the list has nothing to say and steps aside; it is kept for the day you buy a pair. */}
-    <div className="list menu-list" style={{ marginBottom: 12 }}>
+    <div className="list menu-list" style={{ marginBottom: 'var(--sp-3)' }}>
       <Row icon="dumbbell" title={t('I own no dumbbells')} subtitle={t('Dumbbell lifts stay out of the library, the picker and the Coach’s plans.')}>
         <Switch checked={none} onChange={setNone} />
       </Row>
     </div>
     {!none && <>
       {list.length > 0
-        ? <div className="chips" style={{ flexWrap: 'wrap', overflow: 'visible', touchAction: 'auto', marginBottom: 12 }}>
+        ? <div className="chips" style={{ flexWrap: 'wrap', overflow: 'visible', touchAction: 'auto', marginBottom: 'var(--sp-3)' }}>
           {list.map(w => <button key={w} className="chip on nocap" aria-label={t('Remove {0}', fmtPlate(w) + ' ' + unit)}
             onClick={() => save(list.filter(x => x !== w))}>{fmtPlate(w)} <Icon name="xmark" /></button>)}
         </div>
-        : <div className="small dim" style={{ marginBottom: 12 }}>{t('No list yet, so dumbbell lifts step by their increment as usual.')}</div>}
-      <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+        : <div className="small dim" style={{ marginBottom: 'var(--sp-3)' }}>{t('No list yet, so dumbbell lifts step by their increment as usual.')}</div>}
+      <div className="row" style={{ gap: 'var(--sp-2)', marginBottom: 'var(--sp-3)' }}>
         <NumberField className="input" decimal value={draft ?? ''} onChange={v => setDraft(v)}
           aria-label={t('Weight ({0})', unit)} placeholder={t('Weight ({0})', unit)} onKeyDown={e => { if (e.key === 'Enter') add() }} />
         <Button icon="plus" onClick={add} style={{ flex: '0 0 auto', width: 'auto' }}>{t('Add')}</Button>
       </div>
-      <Button onClick={() => save(preset)} style={{ marginBottom: 8 }}>
+      <Button onClick={() => save(preset)} style={{ marginBottom: 'var(--sp-2)' }}>
         {t('Fill in {0} to {1} {2}, every {3}', fmtPlate(preset[0]), fmtPlate(preset.at(-1)), unit, fmtPlate(preset[1] - preset[0]))}
       </Button>
-      {list.length > 0 && <Button variant="danger" onClick={() => save([])} style={{ marginBottom: 8 }}>{t('Clear the list')}</Button>}
+      {list.length > 0 && <Button variant="danger" onClick={() => save([])} style={{ marginBottom: 'var(--sp-2)' }}>{t('Clear the list')}</Button>}
     </>}
     <Button variant="primary" onClick={close}>{t('Done')}</Button>
   </>
@@ -1220,7 +1317,7 @@ function BarDefaultsSheet({ close }) {
     {BAR_TYPES.map(eq => {
       const w = barTypeWeight(st, eq)
       const builtIn = defaultBarWeight(eq, unit)
-      return <div key={eq} style={{ marginBottom: 12 }}>
+      return <div key={eq} style={{ marginBottom: 'var(--sp-3)' }}>
         <div className="row cfgrow" style={{ marginBottom: 6 }}>
           <Stepper label={name(eq) + ' (' + unit + ')'} value={w} step={unit === 'lb' ? 5 : 2.5} onChange={v => set(eq, v)} />
         </div>
@@ -1233,7 +1330,7 @@ function BarDefaultsSheet({ close }) {
     <div className="small dim" style={{ margin: '4px 0 14px' }}>
       {t('Most lifts in the library use “{0}”, a few use “{1}”. A short bar for all of them means setting both.', name('barbell'), name('olympic barbell'))}
     </div>
-    {any && <Button onClick={() => update(s => { s.barDefaults = withStandardBars({ unit, barDefaults: s.barDefaults }); if (!Object.keys(s.barDefaults).length) delete s.barDefaults })} style={{ marginBottom: 8 }}>{t('Back to the standard bars')}</Button>}
+    {any && <Button onClick={() => update(s => { s.barDefaults = withStandardBars({ unit, barDefaults: s.barDefaults }); if (!Object.keys(s.barDefaults).length) delete s.barDefaults })} style={{ marginBottom: 'var(--sp-2)' }}>{t('Back to the standard bars')}</Button>}
     <Button variant="primary" onClick={close}>{t('Done')}</Button>
   </>
 }
@@ -1250,7 +1347,7 @@ function OneRM({ ex }) {
   const est = estimate1RM(w, r, formulaOf(st))
   return <>
     <h4 className="sec">{t('Estimated 1RM')}</h4>
-    {best && <div className="small" style={{ marginBottom: 8 }}>
+    {best && <div className="small" style={{ marginBottom: 'var(--sp-2)' }}>
       {t('From your log:')} <b className="accent">{fmtNum(best.est)} {st.unit}</b>
       <span className="dim"> · {t('{0} × {1} on {2}', fmtNum(best.w) + ' ' + st.unit, best.r, fmtDate(best.d, true))}</span>
     </div>}
@@ -1315,7 +1412,7 @@ function ExerciseDetail({ ex, close }) {
     toast(on ? t('Added to favourites') : t('Removed from favourites'))
   }
   return <>
-    <div className="row between" style={{ gap: 8, alignItems: 'flex-start' }}>
+    <div className="row between" style={{ gap: 'var(--sp-2)', alignItems: 'flex-start' }}>
       <h3 className={'exdetail-name ' + exerciseNameClass(ex)}>{exerciseNameFor(ex)}</h3>
       <button className={'iconbtn fav-btn' + (fav ? ' on' : '')} aria-pressed={fav}
         aria-label={fav ? t('Remove from favourites') : t('Add to favourites')} onClick={flipFav}>
@@ -1332,10 +1429,10 @@ function ExerciseDetail({ ex, close }) {
         separate column beside "Best: 105 kg" once it wrapped (design review 1.4.5). */}
     {best > 0 && <div className="small ex-best"><Icon name="trophy" style={{ fontSize: 14, color: 'var(--gold-ink)' }} />{t('Best:')} <b className="accent" style={{ whiteSpace: 'nowrap' }}>{fmtNum(best)} {st.unit}</b>{last ? <span className="muted">{` · ${t('last')} ${fmtDate(last.d)}: ${last.sets.map(s => setLabel(ex.id, s, last.target, speedUnitOf(st))).join(', ')}`}</span> : ''}</div>}
     <Button variant="primary" icon="plus" style={{ margin: '10px 0 4px' }} onClick={() => addToRoutineSheet(ex)}>{t('Add to my plan')}</Button>
-    {last && <Button icon="history" style={{ marginTop: 4 }} onClick={() => exerciseHistorySheet(ex.id)}>{t('History')}</Button>}
+    {last && <Button icon="history" style={{ marginTop: 'var(--sp-1)' }} onClick={() => exerciseHistorySheet(ex.id)}>{t('History')}</Button>}
     <FormVideosSection exId={ex.id} />
     {/* A sticker on the machine that jumps to this exercise in a workout (components/Nfc.jsx). */}
-    {nfcOK && !ex.missing && <Button icon="nfc" style={{ marginTop: 4 }} onClick={() => nfcExerciseSheet(ex)}>{t('Write NFC sticker for this exercise')}</Button>}
+    {nfcOK && !ex.missing && <Button icon="nfc" style={{ marginTop: 'var(--sp-1)' }} onClick={() => nfcExerciseSheet(ex)}>{t('Write NFC sticker for this exercise')}</Button>}
     {/* Edit is an ordinary button with the others; Delete waits at the very end, apart (P6). */}
     {isCustomEx(ex) && <Button icon="pencil" style={{ marginTop: 8 }} onClick={() => { close(); customExSheet(ex) }}>{t('Edit')}</Button>}
     {modeOf({ id: ex.id }) === 'reps' && <>
@@ -1483,7 +1580,7 @@ function AddToRoutine({ ex, close }) {
   }
   return <>
     <h3 className={exerciseNameClass(ex)}>{t('Add “{0}”', exerciseNameFor(ex))}</h3>
-    <div className="muted small" style={{ marginBottom: 12 }}>{t('Pick a routine. Sets, reps and weight come next.')}</div>
+    <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>{t('Pick a routine. Sets, reps and weight come next.')}</div>
     <div className="list">
       {st.routines.map(r => <div key={r.id} className="item" {...tappable(() => pick(r.id))}>
         <span className="lrow-i"><Icon name={glyphOf(r.emoji)} /></span>
@@ -1595,7 +1692,7 @@ function CustomExForm({ existing, prefill, onDone, close }) {
   }
   return <>
     <h3>{existing ? t('Edit custom exercise') : t('Create your own exercise')}</h3>
-    <div className="muted small" style={{ marginBottom: 12 }}>{t('Name it and pick a body part. It works just like any other exercise.')}</div>
+    <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>{t('Name it and pick a body part. It works just like any other exercise.')}</div>
     <input ref={nameRef} className="input" data-tour="cx-name" placeholder={t('Exercise name')} maxLength={80} value={n} onFocus={onNameFocus} onChange={e => setN(e.target.value)} />
     {aliasesOpen ? <ExerciseAliasesField value={aliases} onChange={setAliases} autoFocus />
       : <div><ExerciseAliasesLink names={normalizeAliases(aliases)} onOpen={() => setAliasesOpen(true)} /></div>}
@@ -1802,8 +1899,8 @@ function ExercisePicker({ onPick, title, close, like, actionIcon, backups }) {
     <div className="row between" style={{ marginBottom: 10 }}><h3>{title || t('Add exercise')}</h3>
       <Button size="sm" variant="tinted" icon="figureStrength" onClick={() => setByMuscle(true)}>{t('By muscle')}</Button>
     </div>
-    {likeEx && <p className="small dim" style={{ margin: '0 0 12px' }}>{t('Replacing {0}', exerciseNameFor(likeEx))}</p>}
-    {like && profiles.length > 0 && <div className="sect-b" style={{ marginBottom: 12 }}>
+    {likeEx && <p className="small dim" style={{ margin: '0 0 var(--sp-3)' }}>{t('Replacing {0}', exerciseNameFor(likeEx))}</p>}
+    {like && profiles.length > 0 && <div className="sect-b" style={{ marginBottom: 'var(--sp-3)' }}>
       <SelectRow icon="house" title={t('Gym')} value={profiles.some(p => p.id === profile?.id) ? profile.id : ''}
         options={[{ value: '', label: t('All equipment') }, ...profiles.map(p => ({ value: p.id, label: p.name }))]}
         onChange={id => { setGym(id); setShowAll(false); setEq(''); setCat(''); setShown(50) }} />
@@ -1812,7 +1909,7 @@ function ExercisePicker({ onPick, title, close, like, actionIcon, backups }) {
     {/* .picker-search is what index.css keys the keyboard-aware sheet layout on: the sheet
         lifts above the keys and the search stays put while the list scrolls under it. */}
     <div className="picker-search"><div className="search-row"><div className={'search' + (narrowed ? ' has-count' : '') + (q ? ' has-clear' : '')}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-      <input ref={searchRef} className="input" placeholder={t('Search {0} exercises…', all.length)} value={q} onFocus={onSearchFocus} onChange={e => { setQ(e.target.value); setShown(50) }} />
+      <input ref={searchRef} className="input" aria-label={t('Search')} placeholder={t('Search {0} exercises…', all.length)} value={q} onFocus={onSearchFocus} onChange={e => { setQ(e.target.value); setShown(50) }} />
       {narrowed && <span className="search-count" role="status" aria-label={exCount(f.length)}>{fmtNum(f.length)}</span>}
       {q && <button className="clear" onClick={() => { setQ(''); setShown(50) }} aria-label={t('Clear')}><Icon name="xmark" /></button>}</div>
       <ExerciseViewToggle /></div></div>
@@ -1828,19 +1925,19 @@ function ExercisePicker({ onPick, title, close, like, actionIcon, backups }) {
         without forgetting the choice (issue #71). The favourites/chosen chips still clear it —
         those are cross-body-part views where a stale equipment filter would be confusing. */}
     <div className="chips" ref={bpStrip} style={{ margin: eqOpts.length > 1 || catOpts.length > 1 ? '10px 0 6px' : '10px 0' }}>
-      {likeTg && <button className={'chip nocap' + (bp === SAME ? ' on' : '')} onClick={() => { setBp(SAME); setShown(50) }}><Icon name="figureStrength" style={{ fontSize: 'var(--fs-caption)', display: 'inline-block', marginInlineEnd: 4, verticalAlign: '-1px' }} />{t('Same muscle: {0}', t(MUSCLE_NAME[likeTg] || likeTg))}</button>}
-      {favCount > 0 && <button className={'chip' + (bp === '☆' ? ' on' : '')} onClick={() => { setBp('☆'); setEq(''); setShown(50) }}><Icon name="starFill" className="fav-star" />{t('Favourites')} ({favCount})</button>}
-      {chosenCount > 0 && <button className={'chip' + (bp === '★' ? ' on' : '')} onClick={() => { setBp('★'); setEq(''); setShown(50) }}><Icon name="starFill" style={{ fontSize: 'var(--fs-caption)', display: 'inline-block', marginInlineEnd: 4, verticalAlign: '-1px' }} />{t('Chosen')} ({chosenCount})</button>}
-      <button className={'chip nocap' + (!bp ? ' on' : '')} onClick={() => { setBp(''); setShown(50) }}>{t('All')}</button>
-      {BODYPARTS.map(b => <button key={b} className={'chip' + (bp === b ? ' on' : '')} onClick={() => { setBp(b); setShown(50) }}>{t(b)}</button>)}
+      {likeTg && <button className={'chip nocap' + (bp === SAME ? ' on' : '')} aria-pressed={bp === SAME} onClick={() => { setBp(SAME); setShown(50) }}><Icon name="figureStrength" style={{ fontSize: 'var(--fs-caption)', display: 'inline-block', marginInlineEnd: 4, verticalAlign: '-1px' }} />{t('Same muscle: {0}', t(MUSCLE_NAME[likeTg] || likeTg))}</button>}
+      {favCount > 0 && <button className={'chip' + (bp === '☆' ? ' on' : '')} aria-pressed={bp === '☆'} onClick={() => { setBp('☆'); setEq(''); setShown(50) }}><Icon name="starFill" className="fav-star" />{t('Favourites')} ({favCount})</button>}
+      {chosenCount > 0 && <button className={'chip' + (bp === '★' ? ' on' : '')} aria-pressed={bp === '★'} onClick={() => { setBp('★'); setEq(''); setShown(50) }}><Icon name="starFill" style={{ fontSize: 'var(--fs-caption)', display: 'inline-block', marginInlineEnd: 4, verticalAlign: '-1px' }} />{t('Chosen')} ({chosenCount})</button>}
+      <button className={'chip nocap' + (!bp ? ' on' : '')} aria-pressed={!bp} onClick={() => { setBp(''); setShown(50) }}>{t('All')}</button>
+      {BODYPARTS.map(b => <button key={b} className={'chip' + (bp === b ? ' on' : '')} aria-pressed={bp === b} onClick={() => { setBp(b); setShown(50) }}>{t(b)}</button>)}
     </div>
     {catOpts.length > 1 && <div className="chips" ref={catStrip} style={{ marginBottom: eqOpts.length > 1 ? 6 : 10 }}>
-      <button className={'chip nocap' + (!catOn ? ' on' : '')} onClick={() => { setCat(''); setShown(50) }}>{t('Any type')}</button>
-      {catOpts.map(x => <button key={x} className={'chip' + (catOn === x ? ' on' : '')} onClick={() => { setCat(x); setShown(50) }}>{t(x)}</button>)}
+      <button className={'chip nocap' + (!catOn ? ' on' : '')} aria-pressed={!catOn} onClick={() => { setCat(''); setShown(50) }}>{t('Any type')}</button>
+      {catOpts.map(x => <button key={x} className={'chip' + (catOn === x ? ' on' : '')} aria-pressed={catOn === x} onClick={() => { setCat(x); setShown(50) }}>{t(x)}</button>)}
     </div>}
     {eqOpts.length > 1 && <div className="chips" ref={eqStrip} style={{ marginBottom: 10 }}>
-      <button className={'chip nocap' + (!eqOn ? ' on' : '')} onClick={() => { setEq(''); setShown(50) }}>{t('Any equipment')}</button>
-      {eqOpts.map(x => <button key={x} className={'chip' + (eqOn === x ? ' on' : '')} onClick={() => { setEq(x); setShown(50) }}>{t(x)}</button>)}
+      <button className={'chip nocap' + (!eqOn ? ' on' : '')} aria-pressed={!eqOn} onClick={() => { setEq(''); setShown(50) }}>{t('Any equipment')}</button>
+      {eqOpts.map(x => <button key={x} className={'chip' + (eqOn === x ? ' on' : '')} aria-pressed={eqOn === x} onClick={() => { setEq(x); setShown(50) }}>{t(x)}</button>)}
     </div>}
     {/* The slot's planned substitutes, first, while nothing is typed: the plan already knows. */}
     {backupList.length > 0 && !q.trim() && <>
@@ -1960,7 +2057,7 @@ function commitActiveSwap(index, ex, cfg) {
 export function swapGroupSheet(choose) {
   ui().openSheet(close => <>
     <h3>{t('Swap exercise?')}</h3>
-    <div className="muted small" style={{ marginBottom: 12 }}>
+    <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>
       {t('Logged sets stay with the original exercise. Choose where the replacement belongs.')}
     </div>
     <Button variant="primary" onClick={() => { close(); choose('keep') }}>
@@ -2090,7 +2187,7 @@ function ProgressionFields({ ex, mode, c, setC, routine, unit, perSide, bw, fall
     {freestyle === 'add'
       ? <div className="small dim" style={{ marginBottom: 18 }}>{t('Freestyle repeats what you did last time, with no progression rule. Rules apply to exercises in a routine.')}</div>
       : <>
-        <div className="sect-b" style={{ marginBottom: 8 }}>
+        <div className="sect-b" style={{ marginBottom: 'var(--sp-2)' }}>
           <SelectRow title={t('Rule')} sheetTitle={t('Progression')} value={c.prog || ''} onChange={setRule}
             options={[{ value: '', label: freestyle ? t('No rule (freestyle)') : t('Follow the routine ({0})', t(POLICY_NAME[inherited])) },
               ...options.map(p => ({ value: p, label: t(POLICY_NAME[p]) }))]} />
@@ -2101,7 +2198,7 @@ function ProgressionFields({ ex, mode, c, setC, routine, unit, perSide, bw, fall
       </>}
     {/* Double progression on a weighted exercise fills this row with four steppers; `cfgrow-4`
         lets it wrap into two pairs on phones, where four abreast left the inputs a few px wide. */}
-    {weightless && active !== 'off' && <div className="small dim" style={{ marginBottom: 12 }}>{t('Nothing to add in weight here: it goes up in reps, then sets.')}</div>}
+    {weightless && active !== 'off' && <div className="small dim" style={{ marginBottom: 'var(--sp-3)' }}>{t('Nothing to add in weight here: it goes up in reps, then sets.')}</div>}
     {(active !== 'off' || backoff) && (!weightless || climbsRange(active) || active === 'triple') && <div className={'row cfgrow' + ((active === 'double' && epleyEligible) || active === 'triple' ? ' cfgrow-4' : '')} style={{ marginBottom: 18 }}>
       {!weightless && <Stepper label={mode === 'time' ? t('Step (seconds)') : t('Step ({0})', unit)} value={inc}
         step={mode === 'time' ? 5 : 1.25} decimal={mode !== 'time'} invalid={invalid} className={invalid ? 'invalid' : ''}
@@ -2126,7 +2223,7 @@ function ProgressionFields({ ex, mode, c, setC, routine, unit, perSide, bw, fall
     {/* Off by default and only written when on, so every plan saved before it stays the shape
         it was. The step is the one above: the gear's own increment, set once per exercise. */}
     {canBackoff && <>
-      <div className="sect-b" style={{ marginBottom: 8 }}>
+      <div className="sect-b" style={{ marginBottom: 'var(--sp-2)' }}>
         <Row icon="steps" iconTint="var(--acc)" title={t('Back-off sets')}
           subtitle={t('Each set one step lighter than the one before. The weight above is the first set.')}>
           <Switch checked={backoff} onChange={v => setC(x => ({ ...x, backoff: v || undefined }))} />
@@ -2163,8 +2260,8 @@ function BackupsSheet({ ex, subs: initial, onChange, close }) {
   }
   return <>
     <h3>{t('Backups for {0}', exerciseNameText(ex))}</h3>
-    <div className="muted small" style={{ marginBottom: 12 }}>{t('Machine taken? Pick what you’d do instead, and a swap mid-workout offers these first.')}</div>
-    {subs.length > 0 && <div className="sect-b" style={{ marginBottom: 12 }}>
+    <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>{t('Machine taken? Pick what you’d do instead, and a swap mid-workout offers these first.')}</div>
+    {subs.length > 0 && <div className="sect-b" style={{ marginBottom: 'var(--sp-3)' }}>
       {subs.map(id => EXIDX[id]).filter(Boolean).map(b => <Row key={b.id} title={exerciseNameText(b)} subtitle={t(b.eq)}>
         <button type="button" className="iconbtn" aria-label={t('Remove “{0}”', exerciseNameText(b))} onClick={() => set(subs.filter(x => x !== b.id))}><Icon name="xmark" /></button>
       </Row>)}
@@ -2420,7 +2517,7 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
               return { ...x, pyramidWeight: weight }
             })} />
         </div>}
-        <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+        <div className="row" style={{ justifyContent: 'flex-end', gap: 'var(--sp-2)' }}>
           <Button size="sm" variant={p === PYRAMID_MAX ? 'primary' : 'plain'} aria-pressed={p === PYRAMID_MAX}
             onClick={() => setPyramidAt(i, p === PYRAMID_MAX ? (c.reps || 10) : PYRAMID_MAX)}>{t('Max')}</Button>
           {c.pyramid.length > 1 && <Button size="sm" icon="trash" aria-label={t('Remove set')} title={t('Remove set')}
@@ -2436,7 +2533,7 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
           pyramidWeight: x.pyramidWeight?.length ? [...x.pyramid.map((_, j) => x.pyramidWeight[j] || 0), x.pyramidWeight[x.pyramid.length - 1] || 0] : x.pyramidWeight,
         }))}>{t('Add set')}</Button>
       <div className="small dim" style={{ marginTop: 8 }}>{t('A set left at 0 rest uses the exercise’s rest.')}</div>
-      {!bw && <div className="small dim" style={{ marginTop: 4 }}>{t('A set left at 0 weight starts from that set’s weight last time.')}</div>}
+      {!bw && <div className="small dim" style={{ marginTop: 'var(--sp-1)' }}>{t('A set left at 0 weight starts from that set’s weight last time.')}</div>}
     </div>}
     {c.intensifier?.type === 'restpause' && <div className="small dim" style={{ marginTop: -10, marginBottom: 18 }}>
       {t('Rest-pause always trains as one warm-up set at this rep count, then one rest-pause work set. "Sets" isn’t used here.')}
@@ -2547,7 +2644,7 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
       </div>
     </>}
     {/* ---------- bodyweight + per side (issues #31/#32/#33) ---------- */}
-    {!cardio && <div className="sect-b" style={{ marginBottom: 8 }}>
+    {!cardio && <div className="sect-b" style={{ marginBottom: 'var(--sp-2)' }}>
       <Row icon="figureStrength" iconTint="var(--acc)" title={t('Bodyweight')}
         subtitle={bw ? (mode === 'time' ? t('No weight to enter. Just time the hold.') : t('No weight to enter. Just log the reps.')) : t('Ask for a weight on every set.')}>
         <Switch checked={bw} onChange={v => setC(x => ({ ...x, bodyweight: v, weight: v ? 0 : x.weight }))} />
@@ -2589,7 +2686,7 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
         one word per line — so added weight gets the same full-width treatment as sets and
         reps, with its explanation underneath. */}
     {bw && <>
-      <div className="row cfgrow" style={{ marginBottom: 8 }}>
+      <div className="row cfgrow" style={{ marginBottom: 'var(--sp-2)' }}>
         <Stepper label={t('Added ({0})', st.unit)} value={c.weight || 0} step={2.5}
           onChange={v => setC(x => ({ ...x, weight: v }))} />
       </div>
@@ -2610,7 +2707,7 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
     {/* A pyramid already shapes every set; a drop-set or rest-pause would reshape them again. */}
     {mode === 'reps' && !pyramid && <>
       <h4 className="sec">{t('Drop-set / rest-pause')}</h4>
-      <div className="sect-b" style={{ marginBottom: 8 }}>
+      <div className="sect-b" style={{ marginBottom: 'var(--sp-2)' }}>
         <SelectRow title={t('Intensifier')} sheetTitle={t('Intensifier')} value={c.intensifier?.type || ''}
           onChange={v => setC(x => ({
             ...x,
@@ -2627,13 +2724,13 @@ function ExConfig({ ex, existing, onSave, onDelete, onReplace, close, routine, i
             { value: 'restpause', label: t('Rest-pause') },
           ]} />
       </div>
-      {c.intensifier?.type === 'dropset' && <div className="row cfgrow" style={{ marginBottom: 8 }}>
+      {c.intensifier?.type === 'dropset' && <div className="row cfgrow" style={{ marginBottom: 'var(--sp-2)' }}>
         <Stepper label={t('Drops')} value={c.intensifier.count} step={1} min={1} decimal={false}
           onChange={v => setC(x => ({ ...x, intensifier: { ...x.intensifier, count: v } }))} />
         <Stepper label={t('Weight drop (%)')} value={c.intensifier.pct} step={5} min={5} decimal={false}
           onChange={v => setC(x => ({ ...x, intensifier: { ...x.intensifier, pct: v } }))} />
       </div>}
-      {c.intensifier?.type === 'restpause' && <div className="row cfgrow" style={{ marginBottom: 8 }}>
+      {c.intensifier?.type === 'restpause' && <div className="row cfgrow" style={{ marginBottom: 'var(--sp-2)' }}>
         <Stepper label={t('Rest-pause reps')} value={c.intensifier.totalReps} step={1} min={1} decimal={false}
           onChange={v => setC(x => ({ ...x, intensifier: { ...x.intensifier, totalReps: v } }))} />
         <Stepper label={t('Rest (s)')} value={c.intensifier.restSec} step={5} min={5} decimal={false}
@@ -2792,7 +2889,7 @@ export async function exportPlanFile() {
   const st = S(), user = useStore.getState().user
   const bundle = buildPlanBundle(st, user?.name ? t('{0}’s plan', user.name) : '')
   const json = JSON.stringify(bundle, null, 2)
-  const name = 'opengym-plan-' + todayISO() + '.json'
+  const name = 'jellogym-plan-' + todayISO() + '.json'
   if (MOBILE) { try { await shareExport(json, name) } catch (e) { /* dismissed */ } return }
   const blob = new Blob([json], { type: 'application/json' })
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href)
@@ -2804,7 +2901,7 @@ export async function exportProgrammeFile(id) {
   const bundle = buildProgrammeBundle(S(), id)
   if (!bundle) return
   const json = JSON.stringify(bundle, null, 2)
-  const name = 'opengym-programme-' + todayISO() + '.json'
+  const name = 'jellogym-programme-' + todayISO() + '.json'
   if (MOBILE) { try { await shareExport(json, name) } catch (e) { /* dismissed */ } return }
   const blob = new Blob([json], { type: 'application/json' })
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href)
@@ -2885,7 +2982,7 @@ function DayOverride({ iso, close }) {
   // that date with the day's routines picked, where the time and the duration can still change.
   const missed = iso < todayISO() && effIds.length > 0 && !workoutsOn(st, iso).length
   const logIt = () => { close(); logPastWorkoutSheet({ iso, routineIds: effIds }) }
-  // A note on a day off (#261, lib/day-notes.js): offered on today and past days with nothing
+  // A note on a day (#261, lib/day-notes.js): offered on today and past days with nothing
   // logged, kept in view on any day that already has one. Quiet on purpose: a row, not a button.
   const note = dayNoteOf(st, iso)
   const canNote = !!note || (canNoteDay(iso) && !workoutsOn(st, iso).length)
@@ -2912,20 +3009,20 @@ function DayOverride({ iso, close }) {
     {effIds.includes(r.id) && <Icon name="check" className="accent" />}</div>
   return <>
     <h3>{fmtDate(iso, true)}</h3>
-    <div className="muted small" style={{ marginBottom: 12 }}>{t('Weekly plan:')} {weeklyNames.length ? deriveSessionName(weeklyNames) : t('Rest')}{changed && <span style={{ color: 'var(--orange)' }}> · {t('changed for this day')}</span>}<br />{t('Sick, missed a day or want a different session? Pick what to train instead.')}</div>
+    <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>{t('Weekly plan:')} {weeklyNames.length ? deriveSessionName(weeklyNames) : t('Rest')}{changed && <span style={{ color: 'var(--orange)' }}> · {t('changed for this day')}</span>}<br />{t('Sick, missed a day or want a different session? Pick what to train instead.')}</div>
     {missed && <div style={{ marginBottom: 14 }}><Button variant="primary" icon="checkCircle" onClick={logIt}>{t('Log this workout')}</Button></div>}
     {canNote && <div className="day-note" style={{ marginBottom: 14 }}>
       <div className="item day-note-row" {...tappable(() => dayNoteSheet(iso))}>
         <span className="lrow-i" style={{ background: 'var(--surface-3)' }}><Icon name={note?.tag ? DAY_NOTE_ICON[note.tag] : 'note'} /></span>
         <div className="grow">{note
-          ? <><div className="tt">{note.tag ? t(DAY_NOTE_LABEL[note.tag]) : t('Day note')}</div>{note.text && <div className="ss" style={{ whiteSpace: 'pre-wrap' }}>{note.text}</div>}</>
+          ? <><div className="tt">{note.tag ? t(DAY_NOTE_LABEL[note.tag]) : t('Note')}</div>{note.text && <div className="ss" style={{ whiteSpace: 'pre-wrap' }}>{note.text}</div>}</>
           : <div className="tt">{t('Add a note for this day')}</div>}</div>
         <Icon name={note ? 'pencil' : 'plus'} className="chev" />
       </div>
     </div>}
     {coach.length > 0 && <>
       <h4 className="sec" style={{ marginTop: 0 }}>{ownLoop ? t('Your loop') : t('Coach week')}</h4>
-      <div className="list" style={{ marginBottom: 8 }}>{coach.map(row)}</div>
+      <div className="list" style={{ marginBottom: 'var(--sp-2)' }}>{coach.map(row)}</div>
     </>}
     <div className="list">
       {st.routines.filter(r => !remaining.includes(r.id)).map(row)}
@@ -2936,8 +3033,8 @@ function DayOverride({ iso, close }) {
 }
 export const dayOverrideSheet = iso => ui().openSheet(close => <DayOverride iso={iso} close={close} />)
 
-// Why a day went without training (#261): one quick pick, a line of text, or both. Saving an
-// empty note takes it away (a stamped clear, lib/day-notes.js withDayNote), and so does Remove.
+// A note for a day: one quick pick, a line of text, or both. Saving an empty note takes it away
+// (a stamped clear, lib/day-notes.js withDayNote), and so does Remove.
 function DayNote({ iso, close }) {
   const noteRef = useRef(null)
   const onNoteFocus = useSheetKeyboard(noteRef)
@@ -2953,13 +3050,13 @@ function DayNote({ iso, close }) {
     const clean = text.trim().slice(0, NOTE_MAX)
     if (!tag && !clean && !had) { close(); return }
     write({ tag, text: clean })
-    toast(tag || clean ? t('Noted. See you next session!') : t('Note removed'))
+    toast(tag || clean ? t('Note saved') : t('Note removed'))
   }
   const remove = () => { write(null); toast(t('Note removed')) }
   return <>
     <h3>{fmtDate(iso, true)}</h3>
-    <div className="muted small" style={{ marginBottom: 12 }}>{t('Life happens. Leave yourself a note, and the missed-day nudge lets this one go.')}</div>
-    <div className="chips" style={{ margin: '0 0 12px' }}>
+    <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>{t('Notes do not change your reminders.')}</div>
+    <div className="chips" style={{ margin: '0 0 var(--sp-3)' }}>
       {DAY_NOTE_TAGS.map(k => <button key={k} className={'chip nocap ichip' + (tag === k ? ' on' : '')} aria-pressed={tag === k}
         onClick={() => setTag(tag === k ? null : k)}><Icon name={DAY_NOTE_ICON[k]} />{t(DAY_NOTE_LABEL[k])}</button>)}
     </div>
@@ -3033,7 +3130,7 @@ function WorkoutDateEdit({ w, onDone, close }) {
   }
   return <>
     <h3>{t('Change date & time')}</h3>
-    <div className="muted small" style={{ marginBottom: 12 }}>{t('The session keeps its length. Personal records are worked out again from the new order.')}</div>
+    <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>{t('The session keeps its length. Personal records are worked out again from the new order.')}</div>
     <Row icon="calendar" title={t('Date')}>
       <DateField compact value={date} max={today} onChange={setDate} label={t('Date')} /></Row>
     <Row icon="clock" title={t('Start time')}>
@@ -3068,7 +3165,7 @@ function WorkoutDurationEdit({ w, onDone, close }) {
   }
   return <>
     <h3>{t('Change duration')}</h3>
-    <div className="muted small" style={{ marginBottom: 12 }}>{t('Forgot to finish on time? Set how long the session really took. It keeps its start time and its sets.')}</div>
+    <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>{t('Forgot to finish on time? Set how long the session really took. It keeps its start time and its sets.')}</div>
     {/* min 0, not 1: the stepper would put a cleared field back to 1 as it lost focus to Save. */}
     {/* No max either: one would cut a typo down to a day on blur and save that without a word. */}
     <Stepper label={t('Duration')} unit={t('min')} value={dur} step={5} min={0} decimal={false} invalid={durInvalid || durTooLong} onChange={v => setDur(Math.round(v))} />
@@ -3255,7 +3352,7 @@ function WorkoutDetail({ w, close }) {
   const grouped = groups.length > 1 || (groups[0] && groups[0].rid && (w.routineIds || []).length > 1)
   return <>
     <h3>{w.name}</h3>
-    <div className="muted small" style={{ marginBottom: 12 }}>{[fmtDate(w.d, true), ...durPart(w.end - w.start), fmtVol(sessionVolume(w, st), st.unit), ...(w.bw ? [fmtNum(w.bw) + ' ' + st.unit] : [])].join(' · ')}</div>
+    <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>{[fmtDate(w.d, true), ...durPart(w.end - w.start), fmtVol(sessionVolume(w, st), st.unit), ...(w.bw ? [fmtNum(w.bw) + ' ' + st.unit] : [])].join(' · ')}</div>
     {grouped ? groups.map(g => {
       const r = g.rid ? st.routines.find(x => x.id === g.rid) : null
       const items = g.items.map(i => w.entries[i])
@@ -3319,10 +3416,10 @@ function ShareWorkoutImage({ w, close }) {
   const day = workoutDay(w) || todayISO()
   const model = useMemo(() => workoutCardModel(w, { unit: st.unit, nameOf: shareNameOf, warmups, streak: streakInfo(st, day).current }), [w, st.unit, warmups, st.workouts, st.weekStart, day]) // eslint-disable-line react-hooks/exhaustive-deps
   return <ShareCardSheet title={t('Share workout')} close={close} toast={toast}
-    name={'opengym-workout-' + day + '.png'} shareTitle={w.name || 'openGym'}
+    name={'jellogym-workout-' + day + '.png'} shareTitle={w.name || 'JelloGym'}
     deps={[model, withMap, st.body]}
     render={pref => workoutCardImage(model, { ...pref, map: withMap, body: st.body })}>
-    {model.levels && <div className="sect-b" style={{ marginBottom: 12 }}>
+    {model.levels && <div className="sect-b" style={{ marginBottom: 'var(--sp-3)' }}>
       <Row icon="figureStrength" iconTint="var(--acc)" title={t('Muscle map')} subtitle={t('Show which muscles this workout trained.')}>
         <Switch checked={withMap} aria-label={t('Muscle map')} onChange={v => update(s => { s.shareMap = v })} />
       </Row>
@@ -3410,7 +3507,7 @@ function Calendar({ start, close }) {
       <span><i style={{ background: 'var(--label-3)' }} />{t('Planned')}</span>
       <span><i style={{ background: 'var(--orange)' }} />{t('Rescheduled')}</span>
       {Object.keys(st.dayNotes || {}).some(k => k.startsWith(y + '-' + String(mo + 1).padStart(2, '0')) && dayNoteOf(st, k)) &&
-        <span><i style={{ background: 'var(--indigo)' }} />{t('Day note')}</span>}
+        <span><i style={{ background: 'var(--indigo)' }} />{t('Note')}</span>}
     </div>
     <div className="small dim" style={{ textAlign: 'center', marginTop: 10 }}>{t('Tap a trained day for details · tap any other day to plan a session')}</div>
   </>
@@ -3436,7 +3533,7 @@ export function WorkoutRow({ w, onClick, tour }) {
 export function DayNoteRow({ iso, note }) {
   return <div className="item day-note-row" {...tappable(() => dayNoteSheet(iso))}>
     <span className="lrow-i" style={{ width: 34, height: 34, borderRadius: 8, fontSize: 19, background: 'var(--surface-3)' }}><Icon name={note.tag ? DAY_NOTE_ICON[note.tag] : 'note'} /></span>
-    <div className="grow"><div className="tt">{note.tag ? t(DAY_NOTE_LABEL[note.tag]) : t('Day note')}</div>
+    <div className="grow"><div className="tt">{note.tag ? t(DAY_NOTE_LABEL[note.tag]) : t('Note')}</div>
       <div className="ss">{[fmtDate(iso, true), note.text].filter(Boolean).join(' · ')}</div></div>
     <Icon name="chevronRight" className="chev" />
   </div>
@@ -3446,10 +3543,12 @@ export function DayNoteRow({ iso, note }) {
 // `routineIds` accepts `string | string[] | null` — `[r.id]` for one routine,
 // `effectiveRoutineIds(...)` for today's planned session, `[]` / null for explicit freestyle.
 export function startFlow(routineIds) {
-  // The weigh-in is a setting (Settings → During a workout, issue #137): off goes straight
-  // into the session with no body weight on it, same as "Start without weighing in".
-  // Off in Settings → Workout, or with the Body module (Settings → Modules): straight into the session.
-  if (S().weighIn === false || !isOn(S(), 'body')) { beginWorkout(routineIds, null); return }
+  // The weigh-in step is the switch's own (Settings → Workout → "Weigh in before workouts",
+  // issue #137): on asks, off goes straight into the session with no body weight on it. Nothing
+  // else decides it — not the Body module, not anything else on the profile — because a switch
+  // that another setting silently overrode is exactly why the step went missing for people who
+  // never turned it off. "Start without weighing in" below is the deliberate once-off skip.
+  if (S().weighIn === false) { beginWorkout(routineIds, null); return }
   bwSheet({ required: true, onDone: bw => beginWorkout(routineIds, bw) })
 }
 // `opts` from the Apple Watch (lib/watch-sync.js): a session started there keeps the watch's id,
@@ -3544,7 +3643,7 @@ function LogPastWorkout({ initial, close }) {
 
   return <>
     <h3>{t('Log a past workout')}</h3>
-    <div className="muted small" style={{ marginBottom: 12 }}>{t('Logged on the usual workout screen, without timers.')}</div>
+    <div className="muted small" style={{ marginBottom: 'var(--sp-3)' }}>{t('Logged on the usual workout screen, without timers.')}</div>
     <Row icon="calendar" title={t('Date')}>
       <DateField compact value={date} max={today} onChange={setDate} label={t('Date')} /></Row>
     <Row icon="clock" title={t('Start time')}>
@@ -3563,14 +3662,14 @@ function LogPastWorkout({ initial, close }) {
 // they come along.
 function SameDayChoice({ iso, existing, onReplace, onAdd, close }) {
   return <div style={{ textAlign: 'center', padding: '4px 0' }}>
-    <h3 style={{ marginBottom: 8 }}>{fmtDate(iso, true)}</h3>
+    <h3 style={{ marginBottom: 'var(--sp-2)' }}>{fmtDate(iso, true)}</h3>
     <div className="muted" style={{ marginBottom: 18, lineHeight: 1.5 }}>{t('There is already a workout on that day.')}</div>
     {existing.map(w => {
       // Replacing re-logs the sets; the photos and videos move to the new record (completeBackfill).
       const n = workoutMediaOf(w, Infinity).length
-      return <div key={w.id} style={{ marginBottom: 8 }}>
+      return <div key={w.id} style={{ marginBottom: 'var(--sp-2)' }}>
         <button className="btn danger" onClick={() => onReplace(w.id)}>{existing.length > 1 ? t('Replace') + ' · ' + w.name : t('Replace')}</button>
-        {n > 0 && <div className="small dim samed-media" style={{ marginTop: 4 }}>{tn('Its photo or video moves to the new workout.', 'Its {0} photos or videos move to the new workout.', n)}</div>}
+        {n > 0 && <div className="small dim samed-media" style={{ marginTop: 'var(--sp-1)' }}>{tn('Its photo or video moves to the new workout.', 'Its {0} photos or videos move to the new workout.', n)}</div>}
       </div>
     })}
     <button className="btn primary" onClick={onAdd}>{t('Add as second workout')}</button>
@@ -3962,7 +4061,7 @@ function LastAndNext({ st, w }) {
       const ex = EXIDX[row.id]
       const tr = row.trend == null ? null : TREND[row.trend]
       return <div key={row.id} className="item" style={{ display: 'block' }}>
-        <div className="row between" style={{ gap: 8 }}>
+        <div className="row between" style={{ gap: 'var(--sp-2)' }}>
           <span className={'tt ' + exerciseNameClass(ex)} style={{ fontWeight: 600 }}>{ex ? exerciseNameFor(ex) : row.id}</span>
           {tr ? <span style={{ color: tr[1], display: 'inline-flex' }} aria-label={row.trend > 0 ? t('Up on last time') : row.trend < 0 ? t('Down on last time') : t('Same as last time')}><Icon name={tr[0]} /></span>
             : <span className="tag nocap">{t('First time')}</span>}
@@ -4005,7 +4104,7 @@ function KeepInRoutine({ additions }) {
   }
   return <div style={{ textAlign: 'start', marginBottom: 14 }} data-keep-in-routine>
     <h4 className="sec">{t('New in this workout')}</h4>
-    {additions.map(a => <div key={a.routineId} style={{ marginBottom: 8 }}>
+    {additions.map(a => <div key={a.routineId} style={{ marginBottom: 'var(--sp-2)' }}>
       <div className="small dim" style={{ marginBottom: 6 }}>{a.ex.map(cfg => EXIDX[cfg.id] ? exerciseNameText(EXIDX[cfg.id]) : cfg.id).join(', ')}</div>
       {added[a.routineId]
         ? <div className="small accent row" style={{ gap: 6 }}><Icon name="checkCircle" /><span>{t('Added to “{0}”', a.name)}</span></div>
@@ -4027,7 +4126,7 @@ function FinishSummary({ w, prs, e1prs = [], additions = [], close }) {
       <div className="tile wide"><div className="l">{t('Sets')}</div><div className="v v-sm">{setsWorkCount(setsDone(w), workSetsDone(w))}</div></div>
       <div className="tile narrow"><div className="l">{t('PRs')}</div><div className="v v-sm">{prs.length || '–'}</div></div>
     </div>
-    {(prs.length > 0 || e1prs.length > 0) && <div style={{ textAlign: 'start', marginBottom: 12 }}>
+    {(prs.length > 0 || e1prs.length > 0) && <div style={{ textAlign: 'start', marginBottom: 'var(--sp-3)' }}>
       {prs.map(id => <div key={id} className="small accent row" style={{ gap: 6, alignItems: 'flex-start' }}><Icon name="trophy" style={{ fontSize: 'var(--fs-footnote)', marginTop: 2, flex: 'none' }} /><span>{t('New PR:')} <span className={exerciseNameClass(EXIDX[id])}>{EXIDX[id] ? exerciseNameFor(EXIDX[id]) : id}</span></span></div>)}
       {e1prs.map(p => <div key={p.id} className="small accent row" style={{ gap: 6, alignItems: 'flex-start' }}><Icon name="chartLine" style={{ fontSize: 'var(--fs-footnote)', marginTop: 2, flex: 'none' }} /><span>{t('Best estimated 1RM:')} <span className={exerciseNameClass(EXIDX[p.id])}>{EXIDX[p.id] ? exerciseNameFor(EXIDX[p.id]) : p.id}</span> · {fmtNum(p.est)} {st.unit}</span></div>)}
     </div>}
@@ -4137,6 +4236,9 @@ function doFinishWorkout() {
     refillAfter(s, w)
   })
   useStore.getState().autoBackupNow()
+  // Habit stacking (docs/LIFE_MODULES.md 2b): a finished session checks the habits opted into
+  // "after finishing a workout", on the session's own day, beside any check already there.
+  update(s => { stackOnFinish(s, w.d) })
   useUI.getState().stopRest()
   // A hold still counting (a plank left unchecked, then Finish early) goes with the workout, as
   // on Discard: its bar is app-wide and would chime over the summary, and its callback writes

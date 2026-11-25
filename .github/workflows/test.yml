@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # The images are node:22-alpine (web/Dockerfile, api/Dockerfile): CI matches production.
+  # The images pin node:22.23.4-alpine (web/Dockerfile, api/Dockerfile): CI matches production,
   NODE_VERSION: 22
   FORCE_COLOR: '1'
 
@@ -454,7 +454,11 @@ jobs:
         working-directory: frontend
       - name: JVM unit tests, sideload APK, play flavour compiles, F-Droid APK
         working-directory: frontend/android
-        run: ./gradlew --no-daemon testSideloadDebugUnitTest assembleSideloadDebug compilePlayDebugJavaWithJavac assembleFdroidRelease
+        # :wear:testDebugUnitTest is in here as well as in docs/WEAR_OS.md's list: the watch's
+        # codec and SessionCore are contract-tested against the same JSON the phone suite writes,
+        # and nothing else in CI ever ran them, so the watch app's own logic was unverified by every
+        # pull request until now.
+        run: ./gradlew --no-daemon testSideloadDebugUnitTest :wear:testDebugUnitTest assembleSideloadDebug compilePlayDebugJavaWithJavac assembleFdroidRelease
       # The build F-Droid makes from this source (unsigned here, as on F-Droid's server): nothing
       # from Google Play services, Firebase or ML Kit in it.
       - name: F-Droid build is free of Google Play services

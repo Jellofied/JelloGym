@@ -36,14 +36,14 @@ describe('tagUrl / parseTagUrl', () => {
     expect(tagUrl({ kind: 'checkin', card: 'a b' })).toBe('https://opengym.ch/nfc?do=checkin')
   })
 
-  it('reads the opengym:// forms, from opengym.ch/nfc and written by hand', () => {
-    expect(parseTagUrl('opengym://nfc?do=start')).toEqual({ kind: 'checkin', start: true, card: null })
-    expect(parseTagUrl('opengym://nfc?ex=0032')).toEqual({ kind: 'exercise', id: '0032' })
-    expect(parseTagUrl('opengym://checkin')).toEqual({ kind: 'checkin', start: false, card: null })
-    expect(parseTagUrl('opengym://checkin?start=1&card=c1')).toEqual({ kind: 'checkin', start: true, card: 'c1' })
-    expect(parseTagUrl('opengym://start')).toEqual({ kind: 'checkin', start: true, card: null })
-    expect(parseTagUrl('opengym://exercise/0025')).toEqual({ kind: 'exercise', id: '0025' })
-    expect(parseTagUrl('OPENGYM://exercise/0025/')).toEqual({ kind: 'exercise', id: '0025' })
+  it('reads the jellogym:// forms, from opengym.ch/nfc and written by hand', () => {
+    expect(parseTagUrl('jellogym://nfc?do=start')).toEqual({ kind: 'checkin', start: true, card: null })
+    expect(parseTagUrl('jellogym://nfc?ex=0032')).toEqual({ kind: 'exercise', id: '0032' })
+    expect(parseTagUrl('jellogym://checkin')).toEqual({ kind: 'checkin', start: false, card: null })
+    expect(parseTagUrl('jellogym://checkin?start=1&card=c1')).toEqual({ kind: 'checkin', start: true, card: 'c1' })
+    expect(parseTagUrl('jellogym://start')).toEqual({ kind: 'checkin', start: true, card: null })
+    expect(parseTagUrl('jellogym://exercise/0025')).toEqual({ kind: 'exercise', id: '0025' })
+    expect(parseTagUrl('JELLOGYM://exercise/0025/')).toEqual({ kind: 'exercise', id: '0025' })
   })
 
   it('takes www, a trailing slash and the .html page', () => {
@@ -55,8 +55,8 @@ describe('tagUrl / parseTagUrl', () => {
     for (const raw of [
       null, undefined, 42, '', 'not a url', 'https://evil.example/nfc?do=start', 'https://opengym.ch.evil.example/nfc?do=start',
       'https://opengym.ch/privacy?do=start', 'https://opengym.ch/nfc', 'https://opengym.ch/nfc?do=launch-missiles',
-      'https://opengym.ch/nfc?ex=', 'https://opengym.ch/nfc?ex=%3Cscript%3E', 'opengym://exercise/', 'opengym://exercise/a/b',
-      'opengym://settings', 'opengym://checkin/extra', 'javascript:alert(1)', 'tel:123', 'opengym://nfc?ex=' + 'x'.repeat(65),
+      'https://opengym.ch/nfc?ex=', 'https://opengym.ch/nfc?ex=%3Cscript%3E', 'jellogym://exercise/', 'jellogym://exercise/a/b',
+      'jellogym://settings', 'jellogym://checkin/extra', 'javascript:alert(1)', 'tel:123', 'jellogym://nfc?ex=' + 'x'.repeat(65),
       'https://opengym.ch/nfc?ex=' + 'x'.repeat(600),
     ]) expect(parseTagUrl(raw), String(raw)).toBeNull()
   })

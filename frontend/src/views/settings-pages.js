@@ -17,13 +17,20 @@ export const PAGES = {
   workout: { title: 'Workout', icon: 'play', tint: 'var(--green)' },
   alerts: { title: 'Timer alerts', icon: 'speaker', tint: 'var(--pink)' },
   reminders: { title: 'Reminders', icon: 'bell', tint: 'var(--red)' },
+  // Water (docs/LIFE_MODULES.md 1d): the behind-on-water nudge's own page, hung under Reminders.
+  'reminders-water': { title: 'Water reminder', icon: 'drop', tint: 'var(--blue)', parent: 'reminders', mod: 'water' },
+  'reminders-habits': { title: 'Habit reminders', icon: 'checkCircle', tint: 'var(--teal)', parent: 'reminders', mod: 'habits' },
   plan: { title: 'Plan & schedule', icon: 'calendar', tint: 'var(--orange)' },
   units: { title: 'Units & language', icon: 'ruler', tint: 'var(--teal)' },
+  water: { title: 'Water', icon: 'drop', tint: 'var(--blue)', mod: 'water', kw: 'water drink hydration cup cups ml goal daily' },
+  habits: { title: 'Habits', icon: 'checkCircle', tint: 'var(--teal)', mod: 'habits', kw: 'habits reminder meditate read stretch vitamins supplement streak' },
+  'health-goals': { title: 'Health goals', icon: 'heart', tint: 'var(--red)', kw: 'steps sleep goal hours steps ring targets' },
+  food: { title: 'Food', icon: 'target', tint: 'var(--green)', mod: 'food', kw: 'food calories protein kcal goals saved meal diet' },
   equipment: { title: 'Equipment', icon: 'kettlebell', tint: 'var(--indigo)' },
   look: { title: 'Look & Home', icon: 'palette', tint: 'var(--purple)' },
   coach: { title: 'AI Coach', icon: 'sparkles', tint: 'var(--green)', mod: 'coach' },
   watch: { title: 'Apple Watch', icon: 'watch', tint: 'var(--grey)', mod: 'watch' },
-  // Settings → Integrations (v1.4.4): the directory of what openGym talks to (views/Integrations.jsx).
+  // Settings → Integrations (v1.4.4): the directory of what JelloGym talks to (views/Integrations.jsx).
   integrations: { title: 'Integrations', icon: 'plug', tint: 'var(--indigo)', kw: 'integrations connect apps services webhook webhooks home assistant n8n ntfy node-red zapier automation garmin fitbit strava sync api mcp' },
   zepp: { title: 'Zepp OS watch', icon: 'watch', tint: 'var(--orange)', mod: 'watch' },
   data: { title: 'Data & backup', icon: 'folder', tint: 'var(--blue)' },
@@ -45,7 +52,7 @@ export const PAGE_IDS = Object.keys(PAGES)
 
 // The root, top to bottom. Whether a row shows is pageVisible's call.
 // Modules first, on its own: what the app shows at all comes before how each part behaves.
-export const ROOT_GROUPS = [['modules'], ['workout', 'alerts', 'reminders'], ['plan', 'units', 'equipment'], ['look', 'coach', 'watch', 'zepp'], ['integrations', 'data', 'about']]
+export const ROOT_GROUPS = [['modules'], ['workout', 'alerts', 'reminders'], ['plan', 'units', 'water', 'habits', 'food', 'health-goals', 'equipment'], ['look', 'coach', 'watch', 'zepp'], ['integrations', 'data', 'about']]
 
 /**
  * Whether a page exists for this device and profile. Reminders need a push server (signed in) or
@@ -56,10 +63,14 @@ export function pageVisible(page, ctx) {
   // A page of a module that is off (ctx.mod answers isOn for this profile; absent: all on).
   if (PAGES[page]?.mod && ctx.mod && !ctx.mod(PAGES[page].mod)) return false
   if (page === 'reminders') return !!(ctx.user || ctx.mobile)
+  // The water reminder rides the same delivery as every reminder: push (signed in) or the phone.
+  if (page === 'reminders-water' || page === 'reminders-habits') return !!(ctx.user || ctx.mobile)
+  // Goals for the data that arrives by itself: the page exists when either module is on.
+  if (page === 'health-goals') return !!(ctx.mod && (ctx.mod('steps') || ctx.mod('sleep')))
   if (page === 'coach') return !!ctx.mobile
   // The iPhone app only: the watch app ships inside it.
   if (page === 'watch') return !!ctx.ios
-  // Signed in to a server: a Zepp OS watch reaches openGym through it (lib/watch-relay.js).
+  // Signed in to a server: a Zepp OS watch reaches JelloGym through it (lib/watch-relay.js).
   if (page === 'zepp') return !!ctx.user && !ctx.demo
   // The phone app only: a browser cannot watch where you are with the page closed.
   if (page === 'gym' || page === 'gym-find' || page === 'gym-edit') return !!ctx.mobile && ctx.gymReminder !== false
@@ -90,7 +101,13 @@ const MODULE_KW = {
   checkin: 'check in check-in qr code membership card barcode nfc sticker gym',
   body: 'body weight weigh-in weigh in scale measurements photos progress goal',
   health: 'health apple health healthkit health connect heart rate recovery sync',
+  water: 'water drink hydration cup cups ml goal daily',
+  habits: 'habits routine check-in streak meditate read stretch vitamins supplements medication',
+  steps: 'steps walking activity watch pedometer',
+  sleep: 'sleep night rest sleep goal hours watch',
+  food: 'food calories protein kcal meal saved diet goals',
   motivation: 'motivation streak challenges badges trophies recap wrapped year share gamification',
+  levels: 'levels xp level progress badges gamification streak freezes perfect day trophy',
   coach: 'ai coach llm assistant review suggestions',
   integrations: 'integrations webhook webhooks home assistant n8n mcp automation',
   seasonal: 'seasonal season halloween christmas advent calendar theme decoration',
@@ -109,7 +126,7 @@ export const SEARCH = [
   { page: 'workout', title: 'Layout', icon: 'layout', tint: 'var(--blue)', kw: 'workout view cards list compact', opts: ['Cards', 'List', 'Compact'] },
   { page: 'workout', title: 'Collapse completed exercises', icon: 'minimize', tint: 'var(--teal)', kw: 'collapse fold minimize hide done finished completed exercises list compact remaining left to do' },
   { page: 'workout', title: 'Skip completed exercises', icon: 'skipForward', tint: 'var(--teal)', kw: 'skip jump done finished completed exercises cards focus next previous' },
-  { page: 'workout', title: 'Weigh in before workouts', icon: 'scale', tint: 'var(--green)', mod: 'body', kw: 'body weight weigh scale start' },
+  { page: 'workout', title: 'Weigh in before workouts', icon: 'scale', tint: 'var(--green)', kw: 'body weight weigh scale start' },
   { page: 'workout', title: 'Keep screen awake', icon: 'phoneScreen', tint: 'var(--yellow)', kw: 'wake lock screen sleep display on', when: c => c.wakeOK || !c.mobile },
   { page: 'workout', title: 'Exercise animations', icon: 'image', tint: 'var(--teal)', kw: 'gif animation video media pictures images', opts: ['Full', 'Small', 'Hidden'] },
   { page: 'workout', title: 'Animation quality', icon: 'image', tint: 'var(--indigo)', kw: 'animation quality resolution sharp hd download pack still px', when: c => c.mobile },
@@ -141,6 +158,8 @@ export const SEARCH = [
   { page: 'reminders', title: 'Nudge me when I skip a planned workout', icon: 'bell', tint: 'var(--red)', kw: 'nudge skip missed motivation', when: c => remind(c) && c.reminderOn, via: PUSH },
   { page: 'reminders', title: 'Nudge tone', icon: 'chat', tint: 'var(--blue)', kw: 'nudge tone friendly guilt drill sergeant', opts: ['Friendly', 'Guilt trip', 'Drill sergeant'], when: c => remind(c) && c.reminderOn && c.nudge, via: PUSH },
   { page: 'reminders', title: 'Gym reminder', icon: 'mapPin', tint: 'var(--green)', kw: 'gym location arrive arrival geofence place map nearby', when: c => !!c.mobile && c.gymReminder !== false },
+  { page: 'reminders', title: 'Water reminder', icon: 'drop', tint: 'var(--blue)', mod: 'water', kw: 'water drink reminder behind goal check time hydration', when: c => remind(c) && c.waterOn, via: PUSH },
+  { page: 'reminders', title: 'Habit reminders', icon: 'checkCircle', tint: 'var(--teal)', mod: 'habits', kw: 'habit reminder digest meditate read vitamins supplement streak', when: c => remind(c) && c.habitsOn, via: PUSH },
   { page: 'reminders', title: 'Send test notification', icon: 'bell', tint: 'var(--red)', kw: 'test push notification try', when: c => !c.mobile && c.pushOK, via: PUSH },
   // Plan & schedule
   { page: 'plan', title: 'How you train', icon: 'repeat', tint: 'var(--orange)', kw: 'scheduling schedule rotation fixed week split loop round cycle', opts: ['Fixed Week', 'Rotation'] },
@@ -159,6 +178,16 @@ export const SEARCH = [
   { page: 'units', title: 'Daily weigh-in value', icon: 'scale', tint: 'var(--teal)', mod: 'body', kw: 'weigh-in body weight morning first average last several day trend chart', opts: ['Morning (first)', 'Average', 'Last'] },
   { page: 'units', title: 'About you', icon: 'person', tint: 'var(--teal)', mod: 'strength', kw: 'sex gender age year of birth born strength level standards' },
   { page: 'units', title: 'Count warm-ups in volume', icon: 'sunrise', tint: 'var(--teal)', kw: 'warm-up warmup volume tonnage total gross work sets' },
+  // Water
+  { page: 'water', title: 'Daily goal', icon: 'target', tint: 'var(--blue)', mod: 'water', kw: 'water goal ml hydration drink' },
+  { page: 'water', title: 'Cup sizes', icon: 'drop', tint: 'var(--blue)', mod: 'water', kw: 'water cup cups quick add sizes ml hydration drink' },
+  // Health goals (the read-only modules)
+  { page: 'health-goals', title: 'Step goal', icon: 'steps', tint: 'var(--orange)', mod: 'steps', kw: 'steps goal daily 8000 ring' },
+  { page: 'health-goals', title: 'Sleep goal', icon: 'moon', tint: 'var(--indigo)', mod: 'sleep', kw: 'sleep goal night hours ring' },
+  // Food
+  { page: 'food', title: 'Calorie goal', icon: 'target', tint: 'var(--green)', mod: 'food', kw: 'calorie kcal energy goal food' },
+  { page: 'food', title: 'Protein goal', icon: 'chartLine', tint: 'var(--green)', mod: 'food', kw: 'protein goal grams muscle food' },
+  { page: 'food', title: 'Saved foods', icon: 'list', tint: 'var(--green)', mod: 'food', kw: 'saved foods meals list one tap log again' },
   // Equipment
   { page: 'equipment', title: 'Plates', icon: 'plate', tint: 'var(--orange)', kw: 'plates bar plate math barbell' },
   { page: 'equipment', title: 'Dumbbells', icon: 'dumbbell', tint: 'var(--teal)', kw: 'dumbbells dumbbell rack inventory adjustable weights own home gym' },

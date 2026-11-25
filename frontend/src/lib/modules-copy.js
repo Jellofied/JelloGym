@@ -13,7 +13,13 @@ export const moduleCopy = () => ({
   checkin: [t('Gym check-in'), t('Your membership codes on Home, and NFC stickers that start a workout.')],
   body: [t('Body'), t('Weigh-ins, measurements, progress photos and your weight goal.')],
   health: [t('Health'), t('Apple Health or Health Connect, heart rate and recovery tips.')],
-  motivation: [t('Motivation'), t('Streaks, challenges, badges, recaps and your year in openGym.')],
+  water: [t('Water'), t('A daily goal, quick-add cups and a ring on Home.')],
+  habits: [t('Habits'), t('Routines you check in place, with streaks and rest-day-aware skipping.')],
+  steps: [t('Steps'), t('Your daily steps, read from Health Connect. Nothing to log.')],
+  sleep: [t('Sleep'), t('Nights from Health Connect, with a goal and a ring.')],
+  food: [t('Food'), t('Calories and protein, a tap to repeat yesterday, saved foods and meals.')],
+  motivation: [t('Motivation'), t('Streaks, challenges, badges, recaps and your year in JelloGym.')],
+  levels: [t('Levels'), t('Consistency-weighted XP from every module, milestones and streak freezes.')],
   coach: [t('AI Coach'), t('Reviews your training and suggests changes. You still say yes or no.')],
   integrations: [t('Integrations'), t('Webhooks for Home Assistant and friends, and the MCP server.')],
   seasonal: [t('Seasonal themes'), t('Halloween, Christmas and the advent calendar. Spooky, festive, optional.')],
@@ -22,6 +28,7 @@ export const moduleCopy = () => ({
 export const groupCopy = () => ({
   training: t('Training'),
   body: t('Body and health'),
+  life: t('Life'),
   extras: t('Extras'),
 })
 

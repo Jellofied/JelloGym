@@ -48,15 +48,15 @@ describe('the state file', () => {
 
   it('a half-written main file is not the end: the other copy is read', async () => {
     await M.nativeSave({ _ts: 1, workouts: ['a'] })
-    h.files.set('opengym-state.next.json', JSON.stringify({ _ts: 1, workouts: ['a'] }))
+    h.files.set('jellogym-state.next.json', JSON.stringify({ _ts: 1, workouts: ['a'] }))
     h.files.set('opengym-state.json', '{"_ts":2,"workouts":["a",')
     expect(await M.nativeLoad()).toEqual({ _ts: 1, workouts: ['a'] })
   })
 
   it('an older leftover never wins over the main file', async () => {
-    h.files.set('opengym-state.next.json', JSON.stringify({ _ts: 1 }))
+    h.files.set('jellogym-state.next.json', JSON.stringify({ _ts: 1 }))
     await M.nativeSave({ _ts: 5 })
-    h.files.set('opengym-state.next.json', JSON.stringify({ _ts: 1 }))
+    h.files.set('jellogym-state.next.json', JSON.stringify({ _ts: 1 }))
     expect((await M.nativeLoad())._ts).toBe(5)
   })
 

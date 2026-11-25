@@ -582,3 +582,367 @@ export const NUDGE_COPY = {
     }
   }
 };
+export const WATER_COPY = {
+  "en": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "ar": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "bn": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "de": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "es": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "fr": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "hi": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "hu": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "it": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "ko": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "pl": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "pt": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "pt-BR": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "ru": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "sv": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "th": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "tr": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "uk": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "zh": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  },
+  "zh-TW": {
+    "title": "Thirsty?",
+    "lines": [
+      "{0} ml still to drink today. A glass now?",
+      "Water is behind: {0} ml left before the day’s goal.",
+      "The last {0} ml of today’s water is the easiest to forget. Finish the day?",
+      "Rough day — but {0} ml of water before bed still counts. Go on."
+    ]
+  }
+};
+export const HABIT_COPY = {
+  "en": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "ar": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "bn": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "de": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "es": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "fr": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "hi": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "hu": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "it": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "ko": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "pl": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "pt": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "pt-BR": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "ru": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "sv": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "th": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "tr": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "uk": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "zh": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  },
+  "zh-TW": {
+    "title": "Habit check-in",
+    "lines": [
+      "Still open today: {0}. A minute now keeps the run alive.",
+      "{0} has not been checked. The streak is waiting.",
+      "A short go on {0} closes today out.",
+      "Last call for {0} today."
+    ]
+  }
+};

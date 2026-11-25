@@ -19,7 +19,7 @@ ARG VCS_REF=dev
 ARG BUILD_DATE=unknown
 
 LABEL maintainer="Duarte Santos https://github.com/DuarteSantos8" \
-    org.opencontainers.image.title="opengym-api" \
+    org.opencontainers.image.title="jellogym-api" \
     org.opencontainers.image.description="Backend for Self-hosted gym & body-weight tracker — plan routines, log workouts (supersets & cardio too), track your weight and progress, passkey login. Your data, your server." \
     org.opencontainers.image.source="https://github.com/DuarteSantos8/openGym" \
     org.opencontainers.image.url="https://opengym.ch" \

@@ -15,7 +15,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { t } from '../lib/i18n.js'
-import { mediaOf, fmtClip } from '../lib/media-refs.js'
+import { mediaOf } from '../lib/media-refs.js'
+import { fmtSec } from '../lib/history.js'
 import { mediaStore } from '../lib/media-store.js'
 import { MOBILE } from '../lib/mobile.js'
 import { limitsFrom, fmtMB, MB } from '../lib/media-limits.js'
@@ -135,7 +136,7 @@ export default function CustomMediaField({ media, url, onChange }) {
   // "0:07 · 2.4 MB": the length of a clip or an animation, and the size of the file itself (the
   // unit through the packs' own "{0} MB", so it reads Mo, МБ, م.ب where it should, and the
   // number with the language's own decimal mark).
-  const sizeLine = m ? [m.dur != null && m.kind !== 'image' ? fmtClip(m.dur) : null, t('{0} MB', fmtMB(Math.max(0.1, m.size / MB), { fixed: true }))].filter(Boolean).join(' · ') : null
+  const sizeLine = m ? [m.dur != null && m.kind !== 'image' ? fmtSec(m.dur) : null, t('{0} MB', fmtMB(Math.max(0.1, m.size / MB), { fixed: true }))].filter(Boolean).join(' · ') : null
   const subtitle = m
     ? <span className="cmf-sub"><Icon name={KIND_ICON[m.kind]} />{sizeLine}</span>
     : t('Optional. A picture makes it easier to spot in a list.')

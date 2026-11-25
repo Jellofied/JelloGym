@@ -7,6 +7,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import TabBar from './TabBar.jsx'
 import { DEF, useStore } from '../store/useStore.js'
+import { useUI } from '../store/useUI.js'
 
 const where = vi.hoisted(() => ({ loc: { pathname: '/home' } }))
 vi.mock('react-router-dom', () => ({
@@ -41,7 +42,7 @@ describe('the tab bar across a store write', () => {
   it('keeps the very same buttons instead of rebuilding them every tick', () => {
     act(() => { root.render(<TabBar onStart={() => {}} />) })
     const before = tabs()
-    expect(before).toHaveLength(5)
+    expect(before).toHaveLength(4)   // no life module on: Home, Workout, the disc, Stats
 
     // What a rest does once a second: S is replaced, so everything reading it re-renders.
     act(() => { useStore.getState().update(s => { s.restSec = 91 }, false) })
@@ -83,19 +84,32 @@ describe('the connection dot on Home', () => {
   })
 })
 
-// v1.3.11 icon sweep: one icon per concept. Every tab carries its name under the icon, Start is a
-// play button whether or not a session runs, and Exercises is the dumbbell (no more generic list).
+// v1.3.11 icon sweep: one icon per concept. Every tab carries its name under the icon. The disc
+// is a plus while idle — the tap opens the Actions hub — and a play button once a session runs,
+// where the same tap resumes it. The Life tab joins the bar while a life module is on;
+// the exercise library lives under Plan now, like History lives under Stats.
 describe('the tab icons and labels', () => {
-  const icon = el => el.querySelector('svg')?.getAttribute('data-icon')
-  const label = el => el.querySelector('span:last-child').textContent
+  const icon = el => el.querySelector('[data-icon]')?.getAttribute('data-icon')
+  const label = el => el.lastElementChild.textContent
   it('labels every tab and uses one icon per concept', () => {
     act(() => { root.render(<TabBar onStart={() => {}} />) })
-    expect(tabs().map(icon)).toEqual(['house', 'calendar', 'play', 'chart', 'dumbbell'])
-    expect(tabs().map(label)).toEqual(['Home', 'Plan', 'Start', 'Stats', 'Exercises'])
+    expect(tabs().map(icon)).toEqual(['house', 'dumbbell', 'plus', 'chart'])
+    expect(tabs().map(label)).toEqual(['Home', 'Workout', 'Actions', 'Stats'])
 
     act(() => { useStore.getState().update(s => { s.active = { id: 'a', entries: [], cur: 0 } }, false) })
     expect(icon(tabs()[2])).toBe('play')
     expect(label(tabs()[2])).toBe('Resume')
+  })
+
+  it('grows a Life tab between the disc and Stats while a life module is on', () => {
+    act(() => { root.render(<TabBar onStart={() => {}} />) })
+    act(() => { useStore.getState().update(s => { s.modules = { water: true } }, false) })
+    expect(tabs().map(icon)).toEqual(['house', 'dumbbell', 'plus', 'life', 'chart'])
+    expect(tabs().map(label)).toEqual(['Home', 'Workout', 'Actions', 'Life', 'Stats'])
+    act(() => { useStore.getState().update(s => { s.modules = { water: false, levels: true } }, false) })
+    expect(tabs().map(label)).toEqual(['Home', 'Workout', 'Actions', 'Life', 'Stats'])
+    act(() => { useStore.getState().update(s => { s.modules = { water: false, levels: false } }, false) })
+    expect(tabs().map(label)).toEqual(['Home', 'Workout', 'Actions', 'Stats'])
   })
 
   it('shows a minimized session’s running time, still named Resume', () => {
@@ -124,7 +138,7 @@ describe('the tab a screen without its own lights', () => {
   const lit = () => tabs().filter(b => b.classList.contains('on')).map(b => b.textContent)
   it.each([
     ['/history', 'Stats'], ['/structural-balance', 'Stats'], ['/progress-photos', 'Stats'], ['/measurements', 'Stats'],
-    ['/settings', 'Home'], ['/settings/units', 'Home'], ['/checkin', 'Home'], ['/muscles', 'Exercises'],
+    ['/settings', 'Home'], ['/settings/units', 'Home'], ['/checkin', 'Home'], ['/muscles', 'Workout'], ['/library', 'Workout'],
   ])('%s lights %s', (pathname, tab) => {
     where.loc = { pathname }
     act(() => { root.render(<TabBar onStart={() => {}} />) })
@@ -135,5 +149,28 @@ describe('the tab a screen without its own lights', () => {
     where.loc = { pathname: '/muscles', state: { from: '/stats' } }
     act(() => { root.render(<TabBar onStart={() => {}} />) })
     expect(lit()).toEqual(['Stats'])
+  })
+})
+
+// The disc as the day's quick-add hub (nav rework): every idle tap opens the sheet, life modules
+// or not; a running session still resumes in one tap, with no menu in the way.
+describe('the disc and the Start sheet', () => {
+  const disc = () => tabs()[2]
+  afterEach(() => { useUI.setState({ sheets: [] }) })
+  it('opens the quick sheet whenever the disc is idle, life modules or not', () => {
+    act(() => { root.render(<TabBar onStart={() => {}} />) })
+    expect(disc().getAttribute('aria-haspopup')).toBe('dialog')
+    act(() => { disc().click() })
+    expect(useUI.getState().sheets).toHaveLength(1)      // the hub is every profile's entry point now
+    act(() => { useStore.getState().update(s => { s.modules = { water: true } }, false) })
+    act(() => { disc().click() })
+    expect(useUI.getState().sheets).toHaveLength(2)
+  })
+  it('a running session stays a direct resume, no menu in the way', () => {
+    act(() => { root.render(<TabBar onStart={() => {}} />) })
+    act(() => { useStore.getState().update(s => { s.modules = { water: true }; s.active = { id: 'a', entries: [], cur: 0, start: Date.now() } }, false) })
+    expect(disc().getAttribute('aria-haspopup')).toBeNull()
+    act(() => { disc().click() })
+    expect(useUI.getState().sheets).toHaveLength(0)
   })
 })

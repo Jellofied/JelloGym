@@ -8,6 +8,11 @@ data/
 
 # Local config
 .env
+local-release/
+
+# IDE state. Android Studio writes frontend/android/.idea/ the first time the project is opened
+# there and drops a deploymentTargetSelector.xml in the index, which is nobody's change to review.
+.idea/
 
 # Build output / deps
 frontend/dist/

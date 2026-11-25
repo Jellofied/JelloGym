@@ -8,7 +8,14 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.13.0'
+        // 8.13.x is what Capacitor 8 is built and tested against. Android Studio offers AGP 9;
+        // it needs Capacitor 9 (a release candidate, not a release) and Gradle 9, and AGP 9's
+        // built-in Kotlin collides with the standalone Kotlin plugins the wear module applies
+        // below. Stay on 8.13 until the cap 9 migration
+        // (capacitorjs.com/docs/next/updating/9-0). The Gradle wrapper does move inside the 8.14
+        // line: 8.14.7 (November 2026) is the OSS patch for three advisories in the daemon
+        // registry and the version-catalog accessors, and AGP 8.13 works with it unchanged.
+        classpath 'com.android.tools.build:gradle:8.13.2'
         // Kotlin, Compose and kotlinx.serialization for the Wear OS module (wear/) only; app/ stays
         // Java and builds exactly as before.
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$wear_kotlin_version"

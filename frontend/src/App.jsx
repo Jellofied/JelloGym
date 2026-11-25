@@ -26,6 +26,8 @@ import { startPhoneWorkout } from './lib/phone-workout.js'
 import { stampWorkout } from './lib/sync-merge.js'
 import { logWeighIn } from './lib/bodyweight.js'
 import { startWidgetSync } from './lib/widgets.js'
+import { startWidgetActions } from './lib/widget-actions.js'
+import { startGlyph } from './lib/glyph.js'
 import { startWidgetLinks } from './lib/widget-links.js'
 import { startVoice, todayRoutineIds } from './lib/voice.js'
 import { startLiveActivitySync } from './lib/live-activity.js'
@@ -34,7 +36,7 @@ import { installViewportGuard } from './lib/viewport-guard.js'
 import { installChipDrag } from './lib/hchips.js'
 import { syncPushSubscription } from './lib/push.js'
 import { MOBILE, nativePlatform } from './lib/mobile.js'
-import { isOn } from './lib/modules.js'
+import { isOn, anyLifeOn } from './lib/modules.js'
 import { useTour, tourState, openTour, readTour, shouldOffer, resumeAt } from './lib/tour.js'
 import { exitWorkoutEdit, startFlow, beginWorkout, bwSheet } from './sheets.jsx'
 import Icon from './components/Icon.jsx'
@@ -77,6 +79,16 @@ function lazyView(load) {
 const Admin = lazyView(() => import('./views/Admin.jsx'))
 const CoachChat = lazyView(() => import('./views/CoachChat.jsx'))
 const Measurements = lazyView(() => import('./views/Measurements.jsx'))
+const Water = lazyView(() => import('./views/Water.jsx'))
+const Habits = lazyView(() => import('./views/Habits.jsx'))
+const HabitDetail = lazyView(() => import('./views/HabitDetail.jsx'))
+const Steps = lazyView(() => import('./views/Steps.jsx'))
+const Sleep = lazyView(() => import('./views/Sleep.jsx'))
+const Level = lazyView(() => import('./views/Level.jsx'))
+const Food = lazyView(() => import('./views/Food.jsx'))
+const FoodSaved = lazyView(() => import('./views/FoodSaved.jsx'))
+const Life = lazyView(() => import('./views/Life.jsx'))
+const LifeRecap = lazyView(() => import('./views/Recap.jsx'))
 const CoachIntake = lazyView(() => import('./views/CoachIntake.jsx'))
 const CoachSetup = lazyView(() => import('./views/CoachSetup.jsx'))
 const StructuralBalance = lazyView(() => import('./views/StructuralBalance.jsx'))
@@ -88,6 +100,7 @@ const RoutineEdit = lazyView(() => import('./views/RoutineEdit.jsx'))
 const Programmes = lazyView(() => import('./views/Programmes.jsx'))
 const ProgrammeEdit = lazyView(() => import('./views/Programmes.jsx').then(m => ({ default: m.ProgrammeEdit })))
 const Stats = lazyView(() => import('./views/Stats.jsx'))
+const StatsLife = lazyView(() => import('./views/StatsLife.jsx'))
 const History = lazyView(() => import('./views/History.jsx'))
 const Library = lazyView(() => import('./views/Library.jsx'))
 const Muscles = lazyView(() => import('./views/Muscles.jsx'))
@@ -342,12 +355,24 @@ function Shell() {
       <Route path="/plan/prog/:id" element={<ProgrammeEdit />} />
       <Route path="/workout" element={<Workout />} />
       <Route path="/stats" element={<Stats />} />
+      {/* The Life half of Stats, behind the same question as the Life tab (lib/modules.js). */}
+      {anyLifeOn(S) && <Route path="/stats/life" element={<StatsLife />} />}
       <Route path="/history" element={<History />} />
       <Route path="/library" element={<Library />} />
       <Route path="/muscles" element={<Muscles />} />
       <Route path="/structural-balance" element={<StructuralBalance />} />
       {isOn(S, 'body') && <Route path="/progress-photos" element={<ProgressPhotos />} />}
       {isOn(S, 'body') && <Route path="/measurements" element={<Measurements />} />}
+      {isOn(S, 'water') && <Route path="/water" element={<Water />} />}
+      {isOn(S, 'habits') && <Route path="/habits" element={<Habits />} />}
+      {isOn(S, 'habits') && <Route path="/habits/:id" element={<HabitDetail />} />}
+      {isOn(S, 'steps') && <Route path="/steps" element={<Steps />} />}
+      {isOn(S, 'sleep') && <Route path="/sleep" element={<Sleep />} />}
+      {isOn(S, 'levels') && <Route path="/level" element={<Level />} />}
+      {isOn(S, 'food') && <Route path="/food" element={<Food />} />}
+      {isOn(S, 'food') && <Route path="/food/saved" element={<FoodSaved />} />}
+      {anyLifeOn(S) && <Route path="/life" element={<Life />} />}
+      {anyLifeOn(S) && <Route path="/recap" element={<LifeRecap />} />}
       <Route path="/settings" element={<SettingsRoute />} />
       <Route path="/settings/:page" element={<SettingsRoute />} />
       {/* The Coach screens gate themselves on the instance config; the routes exist whenever the
@@ -371,7 +396,7 @@ function Shell() {
           lands it simply stays: same key, same parent, so React keeps it instead of mounting
           the route again. */}
       <div id="app">
-        <Page key={loc.pathname} loc={loc} render={view} motion={pageMotion(pathRef.current, loc.pathname, navType)} />
+        <Page key={loc.pathname} loc={loc} render={view} motion={pageMotion(pathRef.current, loc.pathname, navType, loc.state?.peer)} />
         {showPreview && <Page key={preview} loc={previewLoc(preview)} render={view} under scrollY={scrollPositions.get(preview) || 0} />}
       </div>
       {/* Outside #app: the view's fade-in animates a transform, and a fixed element inside it
@@ -388,7 +413,7 @@ function Shell() {
       {/* Seasonal decoration (lib/seasonal.js): nothing, and nothing loaded, out of season. Never
           over a running workout or the first-launch screens. */}
       {authed && !needsMobileOnboarding && !permSteps && <SeasonalLayer hidden={inWorkout || loc.pathname === '/workout'} />}
-      {/* Your year in openGym (components/WrappedEntry.jsx): nothing loaded until it is opened. */}
+      {/* Your year in JelloGym (components/WrappedEntry.jsx): nothing loaded until it is opened. */}
       {authed && isOn(S, 'motivation') && <WrappedLayer ready={setupDone} />}
     </>
   )
@@ -480,6 +505,8 @@ export default function App() {
     const stops = [], gone = { v: false }
     const keep = fn => { if (gone.v) fn(); else stops.push(fn) }
     startWidgetSync({ useStore }).then(keep).catch(() => {})
+    startWidgetActions({ useStore }).then(keep).catch(() => {})
+    startGlyph({ useStore }).then(keep).catch(() => {})
     startLiveActivitySync({ useStore, useUI }).then(keep).catch(() => {})
     return () => { gone.v = true; stops.forEach(fn => fn()) }
   }, [])

@@ -91,7 +91,7 @@ describe('the docked rest bar', () => {
       expect(skip.classList.contains('icon-only')).toBe(true)
       expect(skip.getAttribute('aria-label')).toBe('Skip')
       expect(skip.querySelector('.on')).toBeNull()
-      expect(skip.querySelector('svg')).toBeTruthy()
+      expect(skip.querySelector('.icn')).toBeTruthy()
       act(() => vi.advanceTimersByTime(1000))
       expect(host.querySelector('#timer .skip').getAttribute('aria-label')).toBe('Dismiss')
       act(() => host.querySelector('#timer .skip').click())

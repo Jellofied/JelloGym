@@ -53,17 +53,23 @@ describe('History grows as it is scrolled', () => {
     delete window.IntersectionObserver
   })
 
+  // The next page appears when React flushes the effect that observes the end again. Inside one
+  // act() on an idle machine, a scheduler tick on a loaded one (this failed twice in a run of all
+  // of src/lib plus src/views, and never alone): so the count is waited for, and still asserted
+  // exactly - if the list never grows, or grows to the wrong size, this fails the same way.
+  const seeRows = async (host, n) => { await vi.waitFor(() => expect(rows(host)).toBe(n)) }
+
   it('renders the first page, then a page more each time its end comes into reach, newest first', async () => {
     install(150)
     const host = mount(History)
     expect(rows(host)).toBe(PAGE)
     expect(host.querySelector('.list .item .tt').textContent).toBe('Push 149')
     reachEnd()
-    expect(rows(host)).toBe(2 * PAGE)
+    await seeRows(host, 2 * PAGE)
     reachEnd()
-    expect(rows(host)).toBe(150)
+    await seeRows(host, 150)
     // all there: nothing left to observe
-    expect(observers).toHaveLength(0)
+    await vi.waitFor(() => expect(observers).toHaveLength(0))
     expect(host.querySelector('.list .item:last-child .tt').textContent).toBe('Push 0')
   })
 
@@ -71,7 +77,7 @@ describe('History grows as it is scrolled', () => {
     install(300)
     let host = mount(History)
     reachEnd(); reachEnd()
-    expect(rows(host)).toBe(3 * PAGE)
+    await seeRows(host, 3 * PAGE)
     act(() => roots.pop().unmount())
     host = mount(History)
     expect(rows(host)).toBe(3 * PAGE)

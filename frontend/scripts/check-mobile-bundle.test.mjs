@@ -4,10 +4,10 @@
 import { describe, expect, it } from 'vitest'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 import { checkMobileBundle } from './check-mobile-bundle.mjs'
 
-const MOBILE_HTML = '<head><meta name="opengym-flavor" content="mobile"><script type="module" crossorigin src="./assets/index-BKpgfSzf.js"></script><link rel="stylesheet" href="./assets/index-x.css"></head>'
+const MOBILE_HTML = '<head><meta name="jellogym-flavor" content="mobile"><script type="module" crossorigin src="./assets/index-BKpgfSzf.js"></script><link rel="stylesheet" href="./assets/index-x.css"></head>'
 const WEB_HTML = '<head><script type="module" crossorigin src="./assets/index-C_XIl0Rk.js"></script><link rel="stylesheet" href="./assets/index-x.css"></head>'
 
 const tree = (files) => {
@@ -24,10 +24,15 @@ const copy = (prefix, html, { sw = 'const CACHE = "og-1a2b3c"' } = {}) => ({
   [`${prefix}/assets/index-C_XIl0Rk.js`]: '',
   [`${prefix}/assets/index-x.css`]: '',
   [`${prefix}/sw.js`]: sw,
+  [`${prefix}/exercise-media/still/0001.webp`]: '',
+  [`${prefix}/exercise-media/clip/0001.mp4`]: '',
 })
 const check = files => {
   const dir = tree(files)
-  try { return checkMobileBundle(dir).map(p => p.replace(dir + '/', '')) }
+  // join() gives checkMobileBundle Windows backslashes after the temp dir; the copy's own
+  // forward slashes are what the messages quote, so only the root is trimmed and the rest
+  // is normalised to what every fixture expects.
+  try { return checkMobileBundle(dir).map(p => p.replaceAll(dir + sep, '').split('\\').join('/')) }
   finally { rmSync(dir, { recursive: true, force: true }) }
 }
 
@@ -53,5 +58,24 @@ describe('check-mobile-bundle', () => {
 
   it('fails when there is no build at all', () => {
     expect(check({})).toEqual(['dist: no index.html'])
+  })
+
+  it('fails when the animations were never staged (the no-media test APK)', () => {
+    const files = copy('dist', MOBILE_HTML)
+    delete files['dist/exercise-media/clip/0001.mp4']
+    expect(check(files)).toEqual(['dist/exercise-media/clip has no animations — stage-media.mjs did not run?'])
+  })
+
+  it('fails when the stills were never staged', () => {
+    const files = copy('dist', MOBILE_HTML)
+    delete files['dist/exercise-media/still/0001.webp']
+    expect(check(files)).toEqual(['dist/exercise-media/still has no .webp stills — stage-media.mjs did not run?'])
+  })
+
+  it('accepts the release build\'s webp animations', () => {
+    const files = copy('dist', MOBILE_HTML)
+    delete files['dist/exercise-media/clip/0001.mp4']
+    files['dist/exercise-media/clip/0001.webp'] = ''
+    expect(check(files)).toEqual([])
   })
 })

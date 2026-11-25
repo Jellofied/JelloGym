@@ -1,7 +1,7 @@
 /* GET /api/nudge-check: what the phone app's background check asks before a missed-day nudge or
-   a workout-day reminder it scheduled on itself fires. Whether that day was trained or excused
-   elsewhere, whether the server would still nudge it, and the revision: nothing of the workouts
-   themselves. Real server.js in a child, the same harness as server-admin-delete.test.js. */
+   a workout-day reminder it scheduled on itself fires. Whether that day was trained, whether the
+   server would still nudge it, and the revision: nothing of the workouts themselves. Real
+   server.js in a child, the same harness as server-admin-delete.test.js. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
@@ -60,12 +60,11 @@ test('needs a session: a paired phone’s token or a cookie', async t => {
   assert.equal(cookie.status, 200);
 });
 
-test('a day trained or noted is done; a planned day with nothing is still nudged', async t => {
+test('a day trained is done; a noted day is not, and a planned day with nothing is nudged', async t => {
   const h = await startServer(t);
   const ask = async d => JSON.parse((await h.check(d)).text);
   assert.deepEqual(await ask('2026-09-14'), { date: '2026-09-14', done: true, nudge: false, rev: 7 }, 'a workout');
-  assert.deepEqual(await ask('2026-09-15'), { date: '2026-09-15', done: true, nudge: false, rev: 7 }, 'a day note');
-  // A cleared note (only a stamp) excuses nothing.
+  assert.deepEqual(await ask('2026-09-15'), { date: '2026-09-15', done: false, nudge: true, rev: 7 }, 'a note is not a workout');
   assert.deepEqual(await ask('2026-09-16'), { date: '2026-09-16', done: false, nudge: true, rev: 7 });
   assert.deepEqual(await ask('2026-09-17'), { date: '2026-09-17', done: false, nudge: true, rev: 7 });
 });

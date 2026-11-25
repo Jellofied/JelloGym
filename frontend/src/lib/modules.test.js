@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+﻿import { describe, expect, it } from 'vitest'
 import { MODULES, MODULE_IDS, GROUPS, PRESETS, isOn, moduleStates, presetModules, presetOf, applyPreset, setModule, turnedOff, onCount } from './modules.js'
 
 describe('modules', () => {
@@ -7,17 +7,31 @@ describe('modules', () => {
     for (const m of MODULES) {
       expect(groups.has(m.group)).toBe(true)
       expect(m.icon && m.title && m.desc).toBeTruthy()
-      expect(m.desc).not.toMatch(/—/)
+      expect(m.desc).not.toMatch(/â€”/)
     }
     expect(new Set(MODULE_IDS).size).toBe(MODULE_IDS.length)
   })
 
-  it('a profile from before Modules has every module on', () => {
-    for (const id of MODULE_IDS) expect(isOn({}, id)).toBe(true)
+  it('a profile from before Modules has every module on, except the default-off life ones', () => {
+    for (const m of MODULES) expect(isOn({}, m.id)).toBe(m.default !== false)
     expect(isOn(null, 'body')).toBe(true)
     expect(isOn({ modules: 'junk' }, 'body')).toBe(true)
-    expect(presetOf({})).toBe('all')
-    expect(onCount({})).toBe(MODULE_IDS.length)
+    expect(isOn({}, 'water')).toBe(false)
+    // an untouched profile predates Water: 12 of 13 on, and that matches no preset, so Custom
+    expect(presetOf({})).toBe('custom')
+    expect(onCount({})).toBe(12)
+    expect(MODULE_IDS.length).toBe(18)
+  })
+
+  it('Everything turns water on; Just training and Training and body leave it off', () => {
+    expect(presetModules('all').water).toBe(true)
+    expect(presetModules('training').water).toBe(false)
+    expect(presetModules('body').water).toBe(false)
+    // and the choice is explicit in the map, so a later default cannot silently flip it
+    expect('water' in presetModules('training')).toBe(true)
+    const s = {}
+    applyPreset(s, 'all')
+    expect(isOn(s, 'water')).toBe(true)
   })
 
   it('reads an explicit choice, and an unknown id is on', () => {
@@ -52,7 +66,7 @@ describe('modules', () => {
     applyPreset(s, 'training')
     expect(isOn(s, 'effort')).toBe(true)
     expect(isOn(s, 'plates')).toBe(true)
-    for (const id of ['body', 'health', 'motivation', 'coach', 'seasonal', 'checkin']) expect(isOn(s, id)).toBe(false)
+    for (const id of ['body', 'health', 'water', 'habits', 'steps', 'sleep', 'motivation', 'coach', 'seasonal', 'checkin', 'levels']) expect(isOn(s, id)).toBe(false)
   })
 
   it('one switch away from a preset is Custom, and keeps the other keys', () => {

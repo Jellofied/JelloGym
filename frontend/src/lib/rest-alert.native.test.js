@@ -120,7 +120,7 @@ describe('the rest alert in the Android app', () => {
     await alert.armRestAlert(at, { totalSec: 90, accent: 'red', sound: false })
     expect(schedule).toHaveBeenCalledWith(expect.objectContaining({
       at, totalMs: 90_000, sound: false, title: 'Rest’s over. Next set!', pause: 'Pause', resume: 'Resume', skip: 'Skip',
-      accent: (0xff000000 | 0xff453a) >>> 0, ink: 0xffffffff,
+      accent: (0xff000000 | 0xc8102e) >>> 0, ink: 0xffffffff,
     }))
   })
 
@@ -198,7 +198,7 @@ describe('the alarm buzz in the Android app', () => {
 
 // The native half cannot run here; what it must do with the flag is read off its source.
 describe('the Android side of Vibrate off', () => {
-  const src = name => readFileSync(new URL(`../../android/app/src/main/java/ch/duartesantos/opengym/${name}.java`, import.meta.url), 'utf8')
+  const src = name => readFileSync(new URL(`../../android/app/src/main/java/ch/duartesantos/jellogym/${name}.java`, import.meta.url), 'utf8')
   const alert = src('RestAlert')
 
   it('reads the flag from the page, defaulting to on for an older page', () => {
@@ -222,7 +222,7 @@ describe('the Android side of Vibrate off', () => {
 })
 
 describe('the Android side of the alarm buzz (#375)', () => {
-  const src = name => readFileSync(new URL(`../../android/app/src/main/java/ch/duartesantos/opengym/${name}.java`, import.meta.url), 'utf8')
+  const src = name => readFileSync(new URL(`../../android/app/src/main/java/ch/duartesantos/jellogym/${name}.java`, import.meta.url), 'utf8')
   const alert = src('RestAlert')
   const plugin = src('RestAlertPlugin')
 
@@ -389,7 +389,7 @@ describe('spoken cues through the phone', () => {
   })
 
   it('Android ducks for a line and lets go when nothing is left to say', () => {
-    const java = readFileSync(new URL('../../android/app/src/main/java/ch/duartesantos/opengym/SpeechCue.java', import.meta.url), 'utf8')
+    const java = readFileSync(new URL('../../android/app/src/main/java/ch/duartesantos/jellogym/SpeechCue.java', import.meta.url), 'utf8')
     expect(java).toMatch(/AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK|RestAlert\.duck\(/)
     expect(java).toMatch(/RestAlert\.unduck\(/)
     expect(java).not.toMatch(/AUDIOFOCUS_GAIN\b(?!_TRANSIENT)/)

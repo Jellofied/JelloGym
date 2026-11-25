@@ -257,9 +257,6 @@ export function reRoundOpenSets(S) {
   return moved
 }
 
-/** The gym a saved workout was done at, by name, or null (one from before 1.4.4, or no gyms). */
-export const workoutGymName = w => (isMap(w?.gym) && String(w.gym.name || '').trim()) || null
-
 /**
  * The state the workout screen loads plates from: a saved workout being edited reads the gym it was
  * done at, so its plate lines say what was on the bar there; a live session reads the active gym.

@@ -83,9 +83,42 @@ describe('the native tables', () => {
     for (const name of SESSION_TYPES) expect(s).toContain(`"${name}": .`)
   })
   it('Health Connect knows every type it has a constant for', () => {
-    const s = src('../../android/app/src/main/java/ch/duartesantos/opengym/HealthConnectPlugin.java')
+    const s = src('../../android/app/src/main/java/ch/duartesantos/jellogym/HealthConnectPlugin.java')
     for (const name of SESSION_TYPES.filter(n => !['jump_rope', 'mixed_cardio', 'other_workout'].includes(n))) {
       expect(s).toContain(`case "${name}": return`)
+    }
+  })
+
+  // The permission contract across the bridge. lib/health-sync.js names kinds ('steps', 'sleep',
+  // 'hydration'…), HealthRead.java maps them to android.permission.health.* strings, and the
+  // manifest has to declare each one it maps. A kind missing from the map is refused by the plugin
+  // (asked() rejects rather than dropping it), and a permission missing from the manifest is one
+  // Health Connect will never grant - both read as a switch that does nothing, with no clue where
+  // it broke, so all three files are pinned here.
+  it('every permission kind JS can ask for is mapped and declared', () => {
+    const java = src('../../android/app/src/main/java/ch/duartesantos/jellogym/HealthRead.java')
+    const manifest = src('../../android/app/src/main/AndroidManifest.xml')
+    const body = (fn, until) => java.slice(java.indexOf(fn), java.indexOf(until))
+    const map = (name, where) => {
+      const m = new RegExp(`case "${name}": return "([^"]+)"`).exec(where)
+      return m ? m[1] : null
+    }
+    const reads = body('static String readPermission', 'static String writePermission')
+    const writes = body('static String writePermission', '\n}')
+    for (const kind of ['heartRate', 'weight', 'steps', 'sleep', 'history']) {
+      const p = map(kind, reads)
+      expect(p, `read ${kind} is not mapped in HealthRead.java`).toBeTruthy()
+      expect(manifest, `${p} (read ${kind}) is not in AndroidManifest.xml`).toContain(p)
+    }
+    for (const kind of ['exercise', 'weight', 'hydration']) {
+      const p = map(kind, writes)
+      expect(p, `write ${kind} is not mapped in HealthRead.java`).toBeTruthy()
+      expect(manifest, `${p} (write ${kind}) is not in AndroidManifest.xml`).toContain(p)
+    }
+    // What health-sync.js actually sends, so the loop above is not checking an invented list.
+    const js = src('./health-sync.js')
+    for (const kind of ['heartRate', 'weight', 'steps', 'sleep', 'history', 'hydration']) {
+      expect(js, `${kind} is never asked for from JS`).toContain(kind)
     }
   })
 })
@@ -104,7 +137,7 @@ describe('sessionRecord', () => {
   it('carries the workout id, its times, the name and the sets as text', () => {
     const rec = sessionRecord(workout([strength], { note: 'Felt strong.' }), { unit: 'kg', nameOf })
     expect(rec).toEqual({
-      id: 'opengym-w-w1', start: at(18), end: at(19), type: 'strength_training', title: 'Push',
+      id: 'jellogym-w-w1', start: at(18), end: at(19), type: 'strength_training', title: 'Push',
       notes: 'Barbell Bench Press\n60×8, 60×8\n\nFelt strong.',
     })
   })
@@ -127,7 +160,7 @@ describe('weightRecord', () => {
     expect(weightRecord({ d: '2026-09-17', w: 176.4, t: at(7) }, 'lb').kg).toBeCloseTo(80.014, 3)
   })
   it('is at the time it was typed when that was on its own day', () => {
-    expect(weightRecord({ d: '2026-09-17', w: 80, t: at(7, 12) }, 'kg')).toEqual({ id: 'opengym-bw-2026-09-17', time: at(7, 12), kg: 80 })
+    expect(weightRecord({ d: '2026-09-17', w: 80, t: at(7, 12) }, 'kg')).toEqual({ id: 'jellogym-bw-2026-09-17', time: at(7, 12), kg: 80 })
   })
   it('is at 08:00 on its day when it was added to that day later, or carries no time', () => {
     const morning = new Date(2026, 8, 10, 8).getTime()
@@ -148,11 +181,11 @@ describe('healthRecords', () => {
       bodyweight: [{ d: '2026-09-17', w: 80, t: at(7) }, { d: '2026-09-18', w: null }],
     }
     const r = healthRecords(S, { nameOf })
-    expect(r.sessions.map(s => s.id)).toEqual(['opengym-w-w1'])
-    expect(r.weights.map(s => s.id)).toEqual(['opengym-bw-2026-09-17'])
+    expect(r.sessions.map(s => s.id)).toEqual(['jellogym-w-w1'])
+    expect(r.weights.map(s => s.id)).toEqual(['jellogym-bw-2026-09-17'])
   })
   it('copes with a state that has neither', () => {
-    expect(healthRecords({}, { nameOf })).toEqual({ sessions: [], weights: [] })
+    expect(healthRecords({}, { nameOf })).toEqual({ sessions: [], weights: [], hydration: [] })
   })
 })
 
@@ -164,8 +197,8 @@ describe('planSync', () => {
     const plan = planSync(records(), {})
     expect(plan.sessions).toHaveLength(1)
     expect(plan.weights).toHaveLength(1)
-    expect(plan.remove).toEqual({ sessions: [], weights: [] })
-    expect(Object.keys(plan.written)).toEqual(['opengym-w-w1', 'opengym-bw-2026-09-17'])
+    expect(plan.remove).toEqual({ sessions: [], weights: [], hydration: [] })
+    expect(Object.keys(plan.written)).toEqual(['jellogym-w-w1', 'jellogym-bw-2026-09-17'])
   })
   it('writes nothing again when nothing changed', () => {
     const { written } = planSync(records(), {})
@@ -181,25 +214,57 @@ describe('planSync', () => {
     expect(plan.weights.map(w => w.kg)).toEqual([79.5])
     expect(plan.sessions).toEqual([])
   })
-  it('removes what was deleted from openGym, and only what this phone wrote', () => {
+  it('removes what was deleted from JelloGym, and only what this phone wrote', () => {
     const { written } = planSync(records(), {})
     const plan = planSync({ sessions: [], weights: [] }, written)
-    expect(plan.remove).toEqual({ sessions: ['opengym-w-w1'], weights: ['opengym-bw-2026-09-17'] })
+    expect(plan.remove).toEqual({ sessions: ['jellogym-w-w1'], weights: ['jellogym-bw-2026-09-17'], hydration: [] })
     expect(plan.written).toEqual({})
   })
   it('with the deletions on record, removes only those and keeps the merely missing as written', () => {
     const { written } = planSync(records(), {})
-    const plan = planSync({ sessions: [], weights: [] }, written, new Set(['opengym-bw-2026-09-17']))
-    expect(plan.remove).toEqual({ sessions: [], weights: ['opengym-bw-2026-09-17'] })
-    expect(Object.keys(plan.written)).toEqual(['opengym-w-w1'])
+    const plan = planSync({ sessions: [], weights: [] }, written, new Set(['jellogym-bw-2026-09-17']))
+    expect(plan.remove).toEqual({ sessions: [], weights: ['jellogym-bw-2026-09-17'], hydration: [] })
+    expect(Object.keys(plan.written)).toEqual(['jellogym-w-w1'])
   })
   it('goneIds reads removals, add-backs and a reset', () => {
     const ids = goneIds({
       deleted: { workouts: { a: 5, b: -6 }, bodyweight: { '2026-09-01': 7 }, routines: { r: 9 } },
       resetIds: { workouts: ['c'], bodyweight: ['2026-09-02|123', '2026-09-03|'] },
     })
-    expect([...ids].sort()).toEqual(['opengym-bw-2026-09-01', 'opengym-bw-2026-09-01-*', 'opengym-bw-2026-09-02', 'opengym-bw-2026-09-02-*', 'opengym-bw-2026-09-03', 'opengym-bw-2026-09-03-*', 'opengym-w-a', 'opengym-w-c'])
+    // Every id in both spellings: the hub record carries whichever prefix the build that wrote it
+    // used, so a removal has to name both to be sure of finding it.
+    const current = ['jellogym-bw-2026-09-01', 'jellogym-bw-2026-09-01-*', 'jellogym-bw-2026-09-02', 'jellogym-bw-2026-09-02-*', 'jellogym-bw-2026-09-03', 'jellogym-bw-2026-09-03-*', 'jellogym-w-a', 'jellogym-w-c']
+    expect([...ids].sort()).toEqual([...current, ...current.map(i => i.replace('jellogym-', 'opengym-'))].sort())
     expect(goneIds(null).size).toBe(0)
+  })
+
+  // The rename from openGym to JelloGym changed the client ids this app gives its records. A
+  // phone that upgrading finds already written must not write the same content a second time,
+  // and a deletion must still reach the old record.
+  it('a record already in the hub under the old prefix is not written again', () => {
+    const [{ sessions, weights }] = [records()]
+    const legacy = {}
+    for (const r of [...sessions, ...weights]) legacy[r.id.replace('jellogym-', 'opengym-')] = { k: r === sessions[0] ? 'session' : 'weight', h: recordKey({ ...r, id: r.id.replace('jellogym-', 'opengym-') }) }
+    const plan = planSync({ sessions, weights }, legacy, new Set())
+    expect(plan.sessions).toEqual([])
+    expect(plan.weights).toEqual([])
+    expect(Object.keys(plan.written).sort()).toEqual(['opengym-bw-2026-09-17', 'opengym-w-w1'])
+  })
+
+  it('and a record changed since it went in under the old name is rewritten under the new one', () => {
+    const edited = healthRecords({ ...S, workouts: [workout([{ ...strength, sets: [{ w: 70, r: 8, done: true }] }])] }, { nameOf })
+    const twin = { 'opengym-w-w1': { k: 'session', h: 'stale' } }
+    const plan = planSync({ sessions: edited.sessions, weights: [] }, twin, new Set())
+    expect(plan.sessions.map(s => s.id)).toEqual(['jellogym-w-w1'])
+    expect(Object.keys(plan.written)).toEqual(['jellogym-w-w1'])   // the phone now knows the new id
+  })
+
+  it('a deleted session removes the record whichever prefix it went in under', () => {
+    const legacyId = 'opengym-w-w1'
+    const gone = goneIds({ deleted: { workouts: { w1: 5 } } })
+    expect(gone.has(legacyId)).toBe(true)
+    const plan = planSync({ sessions: [], weights: [] }, { [legacyId]: { k: 'session', h: 'x' } }, gone)
+    expect(plan.remove.sessions).toEqual([legacyId])
   })
 
   // #859: each weigh-in of a day is its own record, at its own time.
@@ -214,17 +279,17 @@ describe('planSync', () => {
     }
     it('writes every typed weigh-in at its time, the old day keeping its id', () => {
       const w = healthRecords(S, { nameOf: x => x }).weights
-      expect(w.map(r => r.id)).toEqual(['opengym-bw-2026-09-17', 'opengym-bw-2026-09-17-ab', 'opengym-bw-2026-09-18'])
+      expect(w.map(r => r.id)).toEqual(['jellogym-bw-2026-09-17', 'jellogym-bw-2026-09-17-ab', 'jellogym-bw-2026-09-18'])
       expect(new Date(w[1].time).getHours()).toBe(21)
       expect(new Date(w[1].time).getMinutes()).toBe(30)
     })
     it('takes out a removed weigh-in, and every weigh-in of a removed day', () => {
       const gone = goneIds(S)
-      expect(gone.has('opengym-bw-2026-09-17-cd')).toBe(true)
-      const written = { 'opengym-bw-2026-09-17-cd': { k: 'weight', h: 'x' }, 'opengym-bw-2026-09-10-zz': { k: 'weight', h: 'y' }, 'opengym-bw-2026-09-11-zz': { k: 'weight', h: 'z' } }
+      expect(gone.has('jellogym-bw-2026-09-17-cd')).toBe(true)
+      const written = { 'jellogym-bw-2026-09-17-cd': { k: 'weight', h: 'x' }, 'jellogym-bw-2026-09-10-zz': { k: 'weight', h: 'y' }, 'jellogym-bw-2026-09-11-zz': { k: 'weight', h: 'z' } }
       const plan = planSync({ sessions: [], weights: [] }, written, gone)
-      expect(plan.remove.weights.sort()).toEqual(['opengym-bw-2026-09-10-zz', 'opengym-bw-2026-09-17-cd'])
-      expect(plan.written['opengym-bw-2026-09-11-zz']).toBeTruthy()
+      expect(plan.remove.weights.sort()).toEqual(['jellogym-bw-2026-09-10-zz', 'jellogym-bw-2026-09-17-cd'])
+      expect(plan.written['jellogym-bw-2026-09-11-zz']).toBeTruthy()
     })
   })
   it('writes one record for two workouts that share an id', () => {
@@ -235,7 +300,7 @@ describe('planSync', () => {
 
 describe('recordKey', () => {
   it('is the same for the same record and differs for a changed one', () => {
-    const rec = { id: 'opengym-bw-2026-09-17', time: at(7), kg: 80 }
+    const rec = { id: 'jellogym-bw-2026-09-17', time: at(7), kg: 80 }
     expect(recordKey({ ...rec })).toBe(recordKey(rec))
     expect(recordKey({ ...rec, kg: 80.1 })).not.toBe(recordKey(rec))
   })
@@ -244,6 +309,61 @@ describe('recordKey', () => {
 describe('writtenIds', () => {
   it('lists what this phone wrote, by type', () => {
     expect(writtenIds({ a: { k: 'session', h: '1' }, b: { k: 'weight', h: '2' }, c: { k: 'other' } }))
-      .toEqual({ sessions: ['a'], weights: ['b'] })
+      .toEqual({ sessions: ['a'], weights: ['b'], hydration: [] })
+  })
+})
+
+// Water 1c (docs/LIFE_MODULES.md): one hydration record per logged drink, written only while the
+// Water module is on, edits rewriting in place under the entry's own client id.
+describe('hydration records', () => {
+  const ws = (over = {}) => ({ unit: 'kg', workouts: [], bodyweight: [], ...over })
+  const W = { a1: { d: '2026-11-14', ml: 250, _ts: 111 }, a2: { d: '2026-11-14', ml: 500, _ts: 222 }, gone: { _ts: 333 }, junk: { d: 'x', ml: 250, _ts: 9 } }
+
+  it('is written only while the Water module is on, tombstones and junk left out', () => {
+    expect(healthRecords(ws({ water: W }), { nameOf }).hydration).toEqual([])
+    const on = healthRecords(ws({ modules: { water: true }, water: W }), { nameOf }).hydration
+    expect(on).toEqual([
+      { id: 'jellogym-hy-a1', time: 111, ml: 250 },
+      { id: 'jellogym-hy-a2', time: 222, ml: 500 },
+    ])
+  })
+
+  it('an edit rewrites under the same id; a removal is on record as deleted and taken out', () => {
+    const written = { 'jellogym-hy-a1': { k: 'hydration', h: recordKey({ id: 'jellogym-hy-a1', time: 111, ml: 250 }) } }
+    const edited = ws({ modules: { water: true }, water: { a1: { d: '2026-11-14', ml: 750, _ts: 555 } } })
+    const plan = planSync(healthRecords(edited, { nameOf }), written, goneIds(edited))
+    expect(plan.hydration.map(r => r.id)).toEqual(['jellogym-hy-a1'])
+    expect(plan.remove.hydration).toEqual([])
+    const removed = ws({ modules: { water: true }, water: { a1: { _ts: 777 } } })
+    const p2 = planSync(healthRecords(removed, { nameOf }), written, goneIds(removed))
+    expect(p2.remove.hydration).toEqual(['jellogym-hy-a1'])
+    expect(p2.hydration).toEqual([])
+  })
+
+  it('a Water module switched off pauses the writes rather than emptying the hub', () => {
+    const written = { 'jellogym-hy-a1': { k: 'hydration', h: 'zz' } }
+    const off = ws({ modules: { water: false }, water: { a1: { d: '2026-11-14', ml: 250, _ts: 1 } } })
+    const plan = planSync(healthRecords(off, { nameOf }), written, goneIds(off))
+    expect(plan.remove.hydration).toEqual([])
+    expect(plan.written['jellogym-hy-a1']).toEqual({ k: 'hydration', h: 'zz' })
+  })
+
+  it('a reset takes out exactly the drinks it wiped, by the reset names', () => {
+    const written = { 'jellogym-hy-a1': { k: 'hydration', h: 'h1' }, 'jellogym-hy-a9': { k: 'hydration', h: 'h9' } }
+    const fresh = ws({ modules: { water: true }, resetIds: { water: ['a1'] } })
+    const plan = planSync(healthRecords(fresh, { nameOf }), written, goneIds(fresh))
+    expect(plan.remove.hydration).toEqual(['jellogym-hy-a1'])
+    expect(plan.written['jellogym-hy-a9']).toBeTruthy()
+  })
+
+  it('writtenIds names hydration for the "remove what JelloGym wrote" sweep', () => {
+    const ids = writtenIds({ 'jellogym-w-1': { k: 'session' }, 'jellogym-hy-a1': { k: 'hydration' } })
+    expect(ids.hydration).toEqual(['jellogym-hy-a1'])
+    expect(ids.sessions).toEqual(['jellogym-w-1'])
+  })
+
+  it('the client id starts with jellogym-, so the read-back filter ignores our own records', async () => {
+    const { isOwnRecord } = await import('./health-read.js')
+    expect(isOwnRecord({ clientId: 'jellogym-hy-a1', origin: 'com.samsung.android.healthframework' })).toBe(true)
   })
 })

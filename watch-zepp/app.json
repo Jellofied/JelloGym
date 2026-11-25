@@ -2,15 +2,15 @@
   "configVersion": "v3",
   "app": {
     "appId": 9990145,
-    "appName": "openGym",
+    "appName": "JelloGym",
     "appType": "app",
     "version": {
       "code": 10404,
       "name": "1.4.4"
     },
     "icon": "icon.png",
-    "vender": "openGym",
-    "description": "openGym on your wrist: start a routine, log sets with the crown, rest with a ring. Pairs with your own openGym server."
+    "vender": "JelloGym",
+    "description": "JelloGym on your wrist: start a routine, log sets with the crown, rest with a ring. Pairs with your own JelloGym server."
   },
   "permissions": [
     "data:os.device.info",
@@ -38,7 +38,7 @@
             {
               "path": "app-widget/index",
               "icon": "icon.png",
-              "name": "openGym",
+              "name": "JelloGym",
               "runtime": {
                 "type": "js"
               }
@@ -66,64 +66,64 @@
   },
   "i18n": {
     "en-US": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "de-DE": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "fr-FR": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "es-ES": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "it-IT": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "pt-PT": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "pt-BR": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "pl-PL": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "hu-HU": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "tr-TR": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "ru-RU": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "uk-UA": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "ar-EG": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "hi-IN": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "bn-BD": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "th-TH": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "ko-KR": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "sv-SE": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "zh-CN": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     },
     "zh-TW": {
-      "appName": "openGym"
+      "appName": "JelloGym"
     }
   },
   "defaultLanguage": "en-US"

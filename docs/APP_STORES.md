@@ -79,7 +79,8 @@ Only the bundle: `AAB_ONLY=1`. Only some packs: `PACK_PX=240,360` (the 1.4.4 clo
 `nice -n 19 ionice -c3`. `BUNDLETOOL=/path/bundletool.jar` validates the bundle at the end.
 
 **Version codes.** One `versionCode` per version, shared by the APKs and the Play bundle
-(1.4.3 = 28, 1.4.4 = 30: 29 went to the 1.4.4 closed test, ...), so the same version from either source installs
+(1.4.3 = 28, 1.4.4 = 31 - app/build.gradle is the record, and the numbers a version skipped are
+already spent), so the same version from either source installs
 over the other. Google Play refuses a code it has seen: if a Play bundle of a version has to be
 uploaded twice, the second one takes the next code and the APK of that version gets it too.
 

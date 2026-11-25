@@ -3,6 +3,8 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 For people, the same map with diagrams is [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+Read docs/LIFE_MODULES.md before planning or building any life-module feature.
+
 ## What this is
 
 openGym is a self-hosted gym and body-weight tracker. Two containers (`api` + `web`) plus a

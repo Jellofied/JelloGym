@@ -15,6 +15,15 @@ it('keeps the fade for tabs, fresh loads, siblings and back into a deeper page',
   expect(pageMotion('/settingsx', '/settings', 'POP')).toBe('fade')
 })
 
+// The two halves of Stats: /stats/life nests under /stats by path but is the other tab, not a
+// level inside, and both directions have to arrive the same way.
+it('a peer switch named as one keeps the fade, whichever way it goes', () => {
+  expect(pageMotion('/stats', '/stats/life', 'PUSH', true)).toBe('fade')
+  expect(pageMotion('/stats/life', '/stats', 'REPLACE', true)).toBe('fade')
+  // unnamed, the depth rule still reads it as a drill-in - which is why the caller says so
+  expect(pageMotion('/stats', '/stats/life', 'PUSH')).toBe('push')
+})
+
 // Settings → Reminders on Android in the light theme (Discord, 1.4.3): the page that slid in kept
 // its slide's background and edge shadow for as long as it stayed open, a shadowed box inset by
 // #app's padding and only as tall as its rows. The page itself keeps its class (`vpush`) after

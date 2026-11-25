@@ -99,9 +99,6 @@ export function readingsOf(e) {
   return [r]
 }
 
-/** How many readings a day holds. */
-export const readingCount = e => readingsOf(e).length
-
 /** The one value of a day from its readings: the first, the average or the last. */
 export function dailyValue(readings, mode = 'first') {
   const rs = list(readings).filter(r => Number(r?.w) > 0)

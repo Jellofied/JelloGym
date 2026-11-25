@@ -18,6 +18,9 @@ import { MEASUREMENT_FIELDS, builtinCsvColumn, customCsvColumn, customDisplayVal
 import { hasCompletedWork, isWarmupRow, isFailureSet, isSideSet, dropsOf } from './workout-model.js'
 import { workoutDay } from './history.js'
 import { setNoteOf } from './set-notes.js'
+import { waterRows } from './water.js'
+import { foodRows } from './food.js'
+import { habitLogsOf, habitsOf } from './habits.js'
 
 export const WORKOUT_COLUMNS = [
   'date', 'start_time', 'end_time', 'workout', 'workout_note', 'exercise', 'exercise_id', 'body_part',
@@ -178,5 +181,43 @@ export function csvCounts(S, range) {
     sets: workoutRows(S, range).length,
     weighIns: (S.bodyweight || []).filter(b => inside(b?.d) && b.w > 0).reduce((sum, b) => sum + Math.max(1, readingsOf(b).length), 0),
     measurements: (S.measurements || []).filter(m => inside(m?.d)).length,
+    drinks: waterRows(S, range).length,
+    habitChecks: habitRows(S, range).length,
+    foods: foodRows(S, range).length,
   }
 }
+
+/**
+ * Water (lib/water.js): one row per drink, date and millilitres. Our own file, and our own
+ * importer reads it back (lib/import-csv.js parseWater), losing nothing an entry holds.
+ */
+export const waterCSV = (S, range = {}) => csvText(['date', 'ml'], waterRows(S, range))
+
+/**
+ * Habits (lib/habits.js): one row per check-in or skip, dated, named. The value says what the
+ * entry was: 'check', 'skip', the units of a count day or the minutes of a timed one. Our own
+ * importer matches the names back to live habits (lib/import-csv.js).
+ */
+export function habitRows(S, { from = null, to = null } = {}) {
+  const defs = new Map(habitsOf(S).map(h => [h.id, h]))
+  const rows = []
+  for (const [id, h] of defs) {
+    for (const l of habitLogsOf(S, id)) {
+      if ((from && l.d < from) || (to && l.d > to)) continue
+      const value = l.skip ? 'skip'
+        : h.type === 'count' ? String(l.n)
+        : h.type === 'timed' ? String(Math.round(l.sec / 60))
+        : 'check'
+      rows.push([l.d, h.name, value])
+    }
+  }
+  return rows.sort((a, b) => (a[0] === b[0] ? String(a[1]).localeCompare(String(b[1])) : a[0] < b[0] ? -1 : 1))
+}
+
+export const habitsCSV = (S, range = {}) => csvText(['date', 'habit', 'value'], habitRows(S, range))
+
+/**
+ * Food (lib/food.js): one row per logged meal, the label last. Our own importer reads it back
+ * by these four columns (lib/import-csv.js parseFood).
+ */
+export const foodCSV = (S, range = {}) => csvText(['date', 'kcal', 'protein', 'label'], foodRows(S, range))

@@ -42,7 +42,10 @@ describe('Increase Contrast (#707)', () => {
     expect(ratio(over(rgba(token(more, '--label-2')), card), card)).toBeGreaterThanOrEqual(4.5)
     // label-3 is the tertiary text (hints, units): at least the large-text bar.
     expect(ratio(over(rgba(token(more, '--label-3')), card), card)).toBeGreaterThanOrEqual(3)
-    for (const k of ['--label-2', '--label-3', '--sep', '--sep-op']) {
+    // The dark palette's labels are opaque solids (#b1b3b3, #717474), so what Increase Contrast
+    // can do for text is guarantee the bar above (checked for --label-2 and --label-3 here);
+    // the hairlines are what still gets firmer by gaining opacity.
+    for (const k of ['--sep', '--sep-op']) {
       expect(rgba(token(more, k)).a, k).toBeGreaterThan(rgba(token(base, k)).a)
     }
   })

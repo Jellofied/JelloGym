@@ -1,4 +1,4 @@
-// "Your year in openGym": the year's numbers (lib/wrapped.js yearStats) as story cards, and each
+// "Your year in JelloGym": the year's numbers (lib/wrapped.js yearStats) as story cards, and each
 // card as a picture to share. The same model feeds the full-screen stories (components/Wrapped.jsx)
 // and the canvas, so what is shared is what was shown:
 //   wrappedCards       — the cards, in order, as words: a card with nothing to say is left out
@@ -92,7 +92,7 @@ export function wrappedCards(st, S) {
   const personality = personalityOf(st)
   const [pName, pLine] = PERSONALITY[personality]()
 
-  cards.push({ id: 'intro', kicker: t('Your year in openGym'), big: String(y), bigKind: 'number', title: t('Grab a shake. This one is all about you.'), lines: [t('Tap to start')] })
+  cards.push({ id: 'intro', kicker: t('Your year in JelloGym'), big: String(y), bigKind: 'number', title: t('Grab a shake. This one is all about you.'), lines: [t('Tap to start')] })
 
   const perWeek = st.perWeek
   cards.push({
@@ -177,6 +177,23 @@ export function wrappedCards(st, S) {
     })
   }
 
+  if (st.life?.any) {
+    const L = st.life
+    const bits = [
+      ...(L.waterDays ? [t('Water: {0} days at goal.', nf(L.waterMet))] : []),
+      ...(L.checks || L.skips ? [t('Habits: {0} checks, {1} frozen days.', nf(L.checks), nf(L.skips))] : []),
+      ...(L.stepsDays ? [t('Steps: {0} days at goal.', nf(L.stepsMet))] : []),
+      ...(L.sleepNights ? [t('Sleep: {0} good nights.', nf(L.sleepMet))] : []),
+      ...(L.foodDays ? [t('Food: {0} days at goal.', nf(L.foodMet))] : []),
+      ...(L.levelGained ? [t('You went up {0} levels.', nf(L.levelGained))] : []),
+    ]
+    cards.push({
+      id: 'life', kicker: t('Life outside the gym'), big: nf(L.perfect), num: L.perfect, bigKind: 'number',
+      title: L.perfect ? tn('{0} perfect day, all year', '{0} perfect days, all year', L.perfect) : t('Every module you keep counts'),
+      lines: bits,
+    })
+  }
+
   cards.push({ id: 'personality', kicker: t('Your training personality'), big: pName, bigKind: 'text', title: pLine, lines: [], personality })
 
   const v = volumeParts(st.volume, st.unit)
@@ -186,10 +203,11 @@ export function wrappedCards(st, S) {
     ...(st.volume > 0 ? [{ label: t('Lifted in total'), value: v.value + ' ' + v.unit }] : []),
     { label: t('Longest streak'), value: tnf('{0} week', '{0} weeks', st.streak.weeks, nf(st.streak.weeks)) },
     ...(st.prs > 0 ? [{ label: t('Records'), value: '🏆 ' + nf(st.prs) }] : []),
+    ...(st.life?.any ? [{ label: t('Perfect days'), value: nf(st.life.perfect) }] : []),
     ...(st.topExercise ? [{ label: t('Signature move'), value: exName(st.topExercise.id, st.topExercise.name), wide: true }] : []),
     { label: t('Training personality'), value: pName, wide: true },
   ]
-  cards.push({ id: 'summary', kicker: t('Your {0} in openGym', String(y)), big: '', bigKind: 'none', title: t('That is a wrap. See you in {0}.', String(y + 1)), lines: [], tiles })
+  cards.push({ id: 'summary', kicker: t('Your {0} in JelloGym', String(y)), big: '', bigKind: 'none', title: t('That is a wrap. See you in {0}.', String(y + 1)), lines: [], tiles })
   return cards
 }
 
@@ -231,7 +249,7 @@ export function layoutWrappedCard(card, { measure, format = 'story', rtl = false
   const cols = square ? 3 : 2
   if (card.tiles) {
     const rows = tileRows(card.tiles, cols)
-    extraH = rows.length * (square ? 112 : 170) + (rows.length - 1) * 18
+    extraH = rows.length * (square ? 112 : 170) + (rows.length - 1) * 30
   } else if (card.map && map) extraH = square ? 300 : 620
   else if (card.bars) extraH = square ? 200 : 340
 
@@ -241,20 +259,20 @@ export function layoutWrappedCard(card, { measure, format = 'story', rtl = false
     const unitSize = Math.round((square ? 64 : 96))
     const unitW = card.unit ? measure(' ' + card.unit, 700, unitSize) : 0
     const size = fitSize(card.big, inner - unitW, measure, 800, square ? 210 : 300, 72)
-    words.push({ text: card.big, size, weight: 800, color: 'accText', unit: card.unit, unitSize, gapAfter: square ? 4 : 18, big: true })
+    words.push({ text: card.big, size, weight: 800, color: 'accText', unit: card.unit, unitSize, gapAfter: square ? 24 : 30, big: true })
   } else if (card.bigKind === 'text' && card.big) {
     const size = square ? 84 : 116
     const lines = wrapText(card.big, inner, x => measure(x, 800, size), square ? 2 : 3)
-    lines.forEach((l, i) => add(l, size, 800, 'accText', i === lines.length - 1 ? (square ? 10 : 26) : 0))
+    lines.forEach((l, i) => add(l, size, 800, 'accText', i === lines.length - 1 ? (square ? 24 : 30) : 0))
   }
   if (card.title) {
     const size = Math.round(card.bigKind === 'none' ? 66 * s + 6 : 54 * s + 4)
     wrapText(card.title, inner, x => measure(x, 700, size), card.bigKind === 'text' && card.id === 'personality' ? 4 : 3)
-      .forEach((l, i, a) => add(l, size, 700, 'label', i === a.length - 1 ? (square ? 16 : 30) : 0))
+      .forEach((l, i, a) => add(l, size, 700, 'label', i === a.length - 1 ? (square ? 24 : 30) : 0))
   }
   for (const line of card.lines || []) {
     const size = Math.round(40 * s + 4)
-    wrapText(line, inner, x => measure(x, 400, size), square ? 2 : 3).forEach((l, i, a) => add(l, size, 400, 'label2', i === a.length - 1 ? 14 : 0))
+    wrapText(line, inner, x => measure(x, 400, size), square ? 2 : 3).forEach((l, i, a) => add(l, size, 400, 'label2', i === a.length - 1 ? 27 : 0))
   }
   const lineH = w => Math.round(w.size * (w.big ? 1.0 : 1.22)) + w.gapAfter
   const wordsH = words.reduce((n, w) => n + lineH(w), 0)
@@ -272,7 +290,7 @@ export function layoutWrappedCard(card, { measure, format = 'story', rtl = false
 
   if (card.tiles) {
     const rows = tileRows(card.tiles, cols)
-    const gap = 18
+    const gap = 30
     // As tall as they can be up to their size, never into the footer.
     const tileH = Math.min(square ? 112 : 170, Math.floor((footY - footRoom - y - gap * (rows.length - 1)) / rows.length))
     for (const row of rows) {

@@ -1,13 +1,13 @@
-/* opengym-mcp state — reads ./data/state-<uid>.json + db.json (read-only). Cached with an
+/* jellogym-mcp state — reads ./data/state-<uid>.json + db.json (read-only). Cached with an
    fs.watch + mtime fallback so a session the api server just wrote is visible on the next
    tool call without a restart. */
 import fs from 'node:fs'
 import path from 'node:path'
 import { applyExerciseMerges } from '../../frontend/src/lib/exercise-merge.js'
 
-const DATA_DIR = process.env.OPENGYM_DATA || path.join(process.cwd(), 'data')
+const DATA_DIR = process.env.JELLOGYM_DATA || path.join(process.cwd(), 'data')
 // Whether a data directory was asked for, as opposed to the ./data guess.
-const DATA_SET = !!process.env.OPENGYM_DATA
+const DATA_SET = !!process.env.JELLOGYM_DATA
 
 // null = no state file (brand-new account); undefined = not yet loaded.
 let _state = undefined
@@ -49,13 +49,13 @@ function stateFile(uid) {
   return path.join(DATA_DIR, 'state-' + uid.replace(/[^a-zA-Z0-9_-]/g, '') + '.json')
 }
 
-// Pick the uid: OPENGYM_UID env, else the only state-* file, else the only user in db.json.
+// Pick the uid: JELLOGYM_UID env, else the only state-* file, else the only user in db.json.
 // Throws listing the options if ambiguous. The sanitiser on stateFile() keeps a sneaky
-// '..' in OPENGYM_UID harmless.
+// '..' in JELLOGYM_UID harmless.
 function resolveUid() {
-  const envUid = (process.env.OPENGYM_UID || '').trim()
+  const envUid = (process.env.JELLOGYM_UID || '').trim()
   if (envUid) {
-    if (!/^[a-zA-Z0-9_-]+$/.test(envUid)) throw new Error(`OPENGYM_UID contains characters that aren't safe in a filename: ${JSON.stringify(envUid)}`)
+    if (!/^[a-zA-Z0-9_-]+$/.test(envUid)) throw new Error(`JELLOGYM_UID contains characters that aren't safe in a filename: ${JSON.stringify(envUid)}`)
     return envUid
   }
   const files = fs.readdirSync(DATA_DIR)
@@ -65,7 +65,7 @@ function resolveUid() {
   if (files.length === 0) {
     reloadDb()
     if (_db.users.length === 1) return _db.users[0].id
-    if (_db.users.length === 0) throw new Error(`no openGym users found in ${path.join(DATA_DIR, 'db.json')} — sign in at least once on a device`)
+    if (_db.users.length === 0) throw new Error(`no JelloGym users found in ${path.join(DATA_DIR, 'db.json')} — sign in at least once on a device`)
     // Multiple users in db.json but no state file yet — hit when accounts exist but none has
     // signed in on a device.
     throw ambiguousUid(_db.users.map(u => u.id))
@@ -79,8 +79,8 @@ function resolveUid() {
 // change are what the model can act on; the ids and the path go to the server log on stderr,
 // where the operator is already reading the startup line.
 function ambiguousUid(ids) {
-  console.error(`[opengym-mcp] ${ids.length} openGym profiles in ${DATA_DIR}: ${ids.join(', ')} — set OPENGYM_UID to one of them`)
-  const err = new Error(`this openGym data directory holds ${ids.length} profiles — set OPENGYM_UID to the one this server should read (the ids are on the server's stderr, and in db.json under "users"[].id)`)
+  console.error(`[jellogym-mcp] ${ids.length} JelloGym profiles in ${DATA_DIR}: ${ids.join(', ')} — set JELLOGYM_UID to one of them`)
+  const err = new Error(`this JelloGym data directory holds ${ids.length} profiles — set JELLOGYM_UID to the one this server should read (the ids are on the server's stderr, and in db.json under "users"[].id)`)
   err.code = 'EINVAL'
   return err
 }
@@ -88,7 +88,7 @@ function ambiguousUid(ids) {
 // Idempotent. Picks the uid, loads db.json, attaches the watcher, primes state.
 export function init() {
   if (_uid !== null) return
-  if (!fs.existsSync(DATA_DIR)) throw new Error(`OPENGYM_DATA dir does not exist: ${DATA_DIR}`)
+  if (!fs.existsSync(DATA_DIR)) throw new Error(`JELLOGYM_DATA dir does not exist: ${DATA_DIR}`)
   _uid = resolveUid()
   reloadDb()
   const file = stateFile(_uid)
@@ -155,14 +155,14 @@ export function getUser() {
 
 export const dataDir = () => DATA_DIR
 
-// The profile this server is set up for, which log_workout holds a token against: OPENGYM_UID
+// The profile this server is set up for, which log_workout holds a token against: JELLOGYM_UID
 // when it is given, whether or not its data is readable here, else the one the data directory
-// names. null only when nothing names one: no OPENGYM_UID, no OPENGYM_DATA and no ./data, the
+// names. null only when nothing names one: no JELLOGYM_UID, no JELLOGYM_DATA and no ./data, the
 // remote-server setup. A data directory that was asked for and cannot be read, or that holds
 // several profiles, throws: a broken mount is no licence to write to whichever profile the token is.
 export function localUid() {
   if (_uid !== null) return _uid
-  const envUid = (process.env.OPENGYM_UID || '').trim()
+  const envUid = (process.env.JELLOGYM_UID || '').trim()
   if (envUid) return envUid
   if (!DATA_SET && !fs.existsSync(DATA_DIR)) return null
   init()

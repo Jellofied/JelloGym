@@ -11,8 +11,7 @@
 //           reads, coach week/rotation included) and no workout dated on it. A floating coach
 //           week or rotation names a session every day until it is done, so on such a day the
 //           day right after a workout is a rest day, not a miss — only the second day off in a
-//           row counts. A day you left a note on (lib/day-notes.js: sick, travelling, …) is
-//           excused, never missed: it is not nudged about and does not count towards the back-off.
+//           row counts. A note is just a note (lib/day-notes.js): it does not excuse a miss.
 //   HOW OFTEN — back-off: the missed days since the last workout are counted (14 days back at
 //           most). After 3 of them the nudge goes quiet until the next workout is logged, so a
 //           break never turns into a daily nag. No counter is stored anywhere: it is read off
@@ -24,7 +23,9 @@
 import { isoOf } from './format.js'
 import { effectiveRoutineIds } from './history.js'
 import { queueLiveOn } from './queue.js'
-import { excusedOn } from './day-notes.js'
+import { isOn } from './modules.js'
+import { reminderOpenOn } from './habits.js'
+import { dayTotal, goalOf } from './water.js'
 
 export const NUDGE_TONES = ['friendly', 'guilt', 'drill']
 export const NUDGE_MAX_MISSES = 3
@@ -87,7 +88,7 @@ const norm = S => ({
 // The routine ids `iso` missed, or [] when it is not a missed day. Each date is asked as if it
 // were today, as the reminder does: a coach week's session is due every day until it is done.
 function missed(S, iso) {
-  if (logged(S, iso) || excusedOn(S, iso)) return []
+  if (logged(S, iso)) return []
   const ids = effectiveRoutineIds(S, iso, iso)
   if (!ids.length) return []
   if (queueLiveOn(S, iso, iso) && logged(S, dayBefore(iso))) return []
@@ -114,3 +115,60 @@ export function nudgeFor(state, iso) {
 
 /** The day's line index: by date, so a day keeps its line and consecutive days rotate. */
 export const lineIndex = (iso, n) => Math.floor(Date.parse(iso + 'T00:00:00Z') / 86400000) % n
+
+/* ------------------------------------------------------------------ habits (docs/LIFE_MODULES.md 2b) -- */
+// One digest a day for the habits that opted into a reminder: at the check time (S.habitReminder,
+// Settings → Reminders → Habit reminders), while the Habits module is on, the open ones are named.
+// api/nudge.js keeps the hand copy; the phone schedules it through lib/mobile.js.
+export const HABIT_COPY = {
+  title: 'Habit check-in',
+  lines: [
+    'Still open today: {0}. A minute now keeps the run alive.',
+    '{0} has not been checked. The streak is waiting.',
+    'A short go on {0} closes today out.',
+    'Last call for {0} today.',
+  ],
+}
+
+/** The habits still open on `iso` for the reminder digest: { ids, names } or null. */
+export function habitNudgeFor(state, iso) {
+  if (!isOn(state, 'habits')) return null
+  if (!state?.habitReminder?.on) return null
+  const open = reminderOpenOn(state, iso)
+  if (!open.length) return null
+  const names = open.slice(0, 2).map(o => o.name).join(' + ') + (open.length > 2 ? ` +${open.length - 2}` : '')
+  return { ids: open.map(o => o.id), names }
+}
+
+/* ------------------------------------------------------------------ water (docs/LIFE_MODULES.md 1d) -- */
+// The second nudge rule, a twin of the first in every way that matters: opt-in on its own
+// (S.waterReminder, Settings → Reminders → Water reminder), a window on the user's clock from the
+// chosen check time until 21:30 (the caller's job), and a plain predicate here. api/nudge.js keeps
+// the hand copy; the phone schedules it through lib/mobile.js (which is what knows the clock).
+export const WATER_COPY = {
+  title: 'Thirsty?',
+  lines: [
+    '{0} ml still to drink today. A glass now?',
+    'Water is behind: {0} ml left before the day’s goal.',
+    'The last {0} ml of today’s water is the easiest to forget. Finish the day?',
+    'Rough day — but {0} ml of water before bed still counts. Go on.',
+  ],
+}
+export const WATER_FRAC = 0.5
+export const WATER_DEFAULT_TIME = '18:00'
+
+/**
+ * The water owed on `iso` when its drinks fall short of half the goal, or null: the Water module
+ * off, the reminder off, nothing set as a goal worth chasing, or the day already half drunk.
+ * The caller owns the clock window (the phone schedules at the time; the server asks in its tick).
+ */
+export function waterNudgeFor(state, iso) {
+  if (!isOn(state, 'water')) return null
+  const r = state?.waterReminder
+  if (!r?.on) return null
+  const goal = goalOf(state)
+  const ml = dayTotal(state, iso)
+  const left = Math.round(goal * WATER_FRAC) - ml
+  if (left <= 0) return null
+  return { ml, goal, left }
+}

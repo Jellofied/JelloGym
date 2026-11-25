@@ -38,7 +38,7 @@ test('two failures in a row add the route', async () => {
   assert.equal(await failover(env, d), 'fallback')
   assert.deepEqual(d.calls, ['GET', 'POST'])
   assert.equal(d.routes[0].pattern, 'opengym.ch/*')
-  assert.equal(d.routes[0].script, 'opengym')
+  assert.equal(d.routes[0].script, 'jellogym')
 })
 test('while in fallback, the copy answering counts as down', async () => {
   const d = rig(['fallback', 'fallback', 'fallback', 'fallback'], [{ id: 'r1', pattern: 'opengym.ch/*' }])

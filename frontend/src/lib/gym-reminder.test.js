@@ -139,14 +139,15 @@ describe('no-nag rule (what the native side applies when a gym is entered)', () 
 })
 
 describe('status for the native side', () => {
-  it('the last day trained, a running session, an excused today', () => {
+  it('the last day trained and a running session', () => {
     const S = {
       workouts: [{ d: '2026-10-10' }, { d: '2026-10-14' }, { d: '2026-10-12' }],
       active: { start: 1234, entries: [] },
-      dayNotes: { '2026-10-15': { tag: 'sick' } },
+      dayNotes: { '2026-10-15': { tag: 'note' } },
     }
     const st = statusOf(S, at('2026-10-15', '09:00'))
     expect(st.trainedOn).toBe('2026-10-14')
+    expect(st.quietOn).toBe('')
     expect(st.activeSince).toBe(1234)
     expect(st.title).toBe('Gym spotted')
     expect(st.body).toBe('Ready for your workout? 💪')

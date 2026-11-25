@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
-// Issue #238: openGym behind a reverse proxy that serves it under a subpath. The assets were
+// Issue #238: JelloGym behind a reverse proxy that serves it under a subpath. The assets were
 // already relative; the API call was not, so it went to the proxy's own root where nothing
 // answers it. The base is read from where the app is being served.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { api, appBase, beacon } from './api.js'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -104,7 +104,7 @@ describe('the cache lifetime nginx gives a build chunk', () => {
   })
 })
 
-// The exercise media are licensed for openGym only: Cross-Origin-Resource-Policy keeps another
+// The exercise media are licensed for JelloGym only: Cross-Origin-Resource-Policy keeps another
 // site from embedding them, on every answer under /exercise-media/, at the site root and under a
 // BASE_PATH alike. An add_header in a block replaces the inherited ones, so the nested block
 // that sets the media's caching has to say it again.
@@ -244,10 +244,19 @@ describe('the redirects nginx sends', () => {
 // script nginx's entrypoint runs before it renders the template. Run here with sh, as it is there.
 describe('the web container refuses a BASE_PATH it cannot serve', () => {
   const WEB = join(dirname(fileURLToPath(import.meta.url)), '../../../web')
+  // web/05-check-base-path.sh is POSIX sh. On PATH where a shell is (Linux/macOS/Git Bash);
+  // on Windows Git ships sh.exe off PATH, so fall back to it. The real check is the script's
+  // own logic; the image entrypoint always runs it under busybox sh.
+  const SH = (() => {
+    const found = spawnSync('sh', ['-c', 'exit 0'])
+    if (!found.error) return 'sh'
+    const win = ['C:/Program Files/Git/bin/sh.exe', 'C:/Program Files/Git/usr/bin/sh.exe']
+    return win.find(p => existsSync(p)) ?? 'sh'
+  })()
   const check = value => {
     const env = { PATH: process.env.PATH }
     if (value !== undefined) env.BASE_PATH = value
-    return spawnSync('sh', [join(WEB, '05-check-base-path.sh')], { env, encoding: 'utf8' })
+    return spawnSync(SH, [join(WEB, '05-check-base-path.sh')], { env, encoding: 'utf8' })
   }
 
   it.each([[undefined], [''], ['/gym'], ['/a/b'], ['/g+ym']])('starts with BASE_PATH=%s', value => {

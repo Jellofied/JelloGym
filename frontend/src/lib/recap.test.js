@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { recapPeriod, recapOf, recapDue } from './recap.js'
+import { recapPeriod, recapOf, recapDue, lifeRecapOf, lifeRecapDue, lifeOfYear } from './recap.js'
 
 const BENCH = '0025'
 const wk = (d, n = 3, prs = []) => ({ id: 'w' + d, d, start: new Date(d + 'T10:00:00').getTime(), end: new Date(d + 'T11:00:00').getTime(), prs, entries: [{ id: BENCH, target: { mode: 'reps' }, sets: Array.from({ length: n }, () => ({ w: 100, r: 5, done: true })) }] })
@@ -23,5 +23,55 @@ describe('week and month recap', () => {
     expect(recapDue(S({ recap: false }), '2026-10-26')).toBe(null)
     expect(recapDue(S({ recapSeen: 'w:2026-10-19' }), '2026-10-26')).toBe(null)
     expect(recapDue(S({ workouts: [] }), '2026-10-26')).toBe(null)
+  })
+})
+
+const LIFES = extra => ({
+  unit: 'kg', weekStart: 1, workouts: [wk('2026-10-20'), wk('2026-10-22')],
+  dayPlan: {}, routines: [], week: [],
+  modules: { water: true, habits: true },
+  waterGoal: 1000,
+  water: { a: { d: '2026-10-20', ml: 1200, _ts: 1 }, b: { d: '2026-10-21', ml: 800, _ts: 1 } },
+  habitDefs: { h1: { name: 'Stretch', type: 'yesno', schedule: { kind: 'daily' }, _ts: 1 } },
+  habitLogs: { l1: { h: 'h1', d: '2026-10-20', _ts: 1 }, l2: { h: 'h1', d: '2026-10-21', skip: 1, _ts: 1 } },
+  ...extra,
+})
+const PERIOD = { kind: 'week', from: '2026-10-19', to: '2026-10-25', key: 'w:2026-10-19' }
+
+describe('life recap', () => {
+  test('enabled modules get a section, disabled ones are absent', () => {
+    const r = lifeRecapOf(LIFES(), PERIOD, '2026-10-26')
+    expect(r.modules.water).toEqual({ daysWithLogs: 2, met: 1, avg: 1000 })
+    expect(r.modules.habits.checks).toBe(1)
+    expect(r.modules.habits.skips).toBe(1)
+    expect(r.modules.habits.dueDays).toBe(7)
+    expect(r.modules.habits.allMetDays).toBe(2)
+    expect(r.modules.steps).toBeUndefined()
+    expect(r.hasAny).toBe(true)
+    expect(r.hasData).toBe(true)
+  })
+  test('a dead week: nothing to show', () => {
+    expect(lifeRecapOf(LIFES({ water: {} }), PERIOD, '2026-10-26').hasData).toBe(true) // habits still logged
+    const r = lifeRecapOf(LIFES({ water: {}, habitLogs: {}, habitDefs: {} }), PERIOD, '2026-10-26')
+    expect(r.hasData).toBe(false)
+  })
+  test('the due card: needs a life module on, something logged, and its own put-away', () => {
+    expect(lifeRecapDue(LIFES(), '2026-10-26')).toBeTruthy()
+    expect(lifeRecapDue(S(), '2026-10-26')).toBe(null)
+    expect(lifeRecapDue(LIFES({ lifeRecapSeen: 'w:2026-10-19' }), '2026-10-26')).toBe(null)
+    expect(lifeRecapDue(LIFES({ lifeRecap: false }), '2026-10-26')).toBe(null)
+    expect(lifeRecapDue(LIFES({ water: {}, habitLogs: {}, habitDefs: {} }), '2026-10-26')).toBe(null)
+    expect(lifeRecapDue(LIFES(), '2026-10-28')).toBe(null) // not a due day
+  })
+  test('the year pass: buckets by day, off modules stay at zero', () => {
+    const y = lifeOfYear({
+      unit: 'kg', weekStart: 1, workouts: [], dayPlan: {}, routines: [], week: [], modules: { water: true }, waterGoal: 1000,
+      water: { a: { d: '2025-03-01', ml: 1200, _ts: 1 }, b: { d: '2026-01-05', ml: 2000, _ts: 1 } },
+    }, 2025, '2026-11-14')
+    expect(y.waterDays).toBe(1)
+    expect(y.waterMet).toBe(1)
+    expect(y.any).toBe(true)
+    expect(y.checks).toBe(0)
+    expect(lifeOfYear(LIFES(), 2027, '2026-11-14').any).toBe(false)
   })
 })

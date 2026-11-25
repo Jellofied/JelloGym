@@ -12,8 +12,8 @@
 import { t, tn } from './i18n-core.js'
 import { isoOf, todayISO } from './format.js'
 import { effectiveRoutineIds } from './history.js'
-import { NUDGE_COPY, lineIndex, nudgeFor, nudgeMinute, toneOf } from './nudge.js'
-import { excusedOn } from './day-notes.js'
+import { HABIT_COPY, NUDGE_COPY, WATER_COPY, WATER_DEFAULT_TIME, habitNudgeFor, lineIndex, nudgeFor, nudgeMinute, toneOf, waterNudgeFor } from './nudge.js'
+import { isOn } from './modules.js'
 import { stateJson } from './state-json.js'
 
 export const MOBILE = import.meta.env.VITE_MOBILE === '1'
@@ -53,7 +53,7 @@ const FILE = 'opengym-state.json'
 // app killed mid-write, the battery gone) never leaves a half file where the last good copy was.
 // A move that did not finish leaves the new copy under FILE_NEW: whichever of the two parses and
 // is the later one (`_ts`) is the copy.
-const FILE_NEW = 'opengym-state.next.json'
+const FILE_NEW = 'jellogym-state.next.json'
 
 export async function nativeLoad() {
   try {
@@ -87,7 +87,7 @@ export async function nativeSave(state) {
 // device chose, kept in its own file — never inside opengym-state.json, since that file's content
 // is exactly what pushState() PUTs to a server, and a device's own connection secret must never
 // travel as if it were training data.
-const REMOTE_FILE = 'opengym-remote.json'
+const REMOTE_FILE = 'jellogym-remote.json'
 
 // Small JSON files in the app's private data directory, for device facts that must not ride
 // in S (which syncs and exports): the pairing, and how the Coach runs on this phone.
@@ -169,8 +169,7 @@ export function buildReminderNotifications(S, now = new Date()) {
     const day = new Date(date)
     day.setDate(date.getDate() + offset)
     const iso = isoOf(day)
-    // A day you noted as sick or away (lib/day-notes.js) is off the hook, reminder included.
-    if (completed.has(iso) || excusedOn(S, iso)) continue
+    if (completed.has(iso)) continue
     // A weekday can hold several routines; name them all, or fall back to a count. Each day is
     // asked as if it were today: a coach week's next session is due every day until it is done,
     // so it is reminded every day (the app re-syncs these after every workout and on open).
@@ -229,6 +228,69 @@ export function buildNudgeNotifications(S, now = new Date()) {
   return notifications
 }
 
+// The water nudge (lib/nudge.js waterNudgeFor): one per day ahead, at the chosen check time.
+// Being behind only ever shrinks during a day (every drink logged re-runs this and drops that
+// day's notification, and a log is the only way to catch up), so what is owed at build time is
+// still owed when it fires.
+export const WATER_WINDOW_DAYS = 7
+const WATER_ID_BASE = 4000
+export function buildWaterNotifications(S, now = new Date()) {
+  const r = S?.waterReminder
+  if (!r?.on) return []
+  const [hour, minute] = (r.time || WATER_DEFAULT_TIME).split(':').map(Number)
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return []
+  const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12)
+  const notifications = []
+  for (let offset = 0; offset < WATER_WINDOW_DAYS; offset++) {
+    const day = new Date(date)
+    day.setDate(date.getDate() + offset)
+    const iso = isoOf(day)
+    const p = waterNudgeFor(S, iso)
+    if (!p) continue
+    const at = new Date(day)
+    at.setHours(hour, minute, 0, 0)
+    if (at <= now) continue
+    notifications.push({
+      id: WATER_ID_BASE + offset,
+      title: t(WATER_COPY.title),
+      body: t(WATER_COPY.lines[lineIndex(iso, WATER_COPY.lines.length)], p.left),
+      schedule: { at, allowWhileIdle: true },
+    })
+  }
+  return notifications
+}
+
+// The habit reminder digest (lib/nudge.js habitNudgeFor): like the water nudge, one at the check
+// time per day ahead; a check-in that evening rebuilds this and drops the day.
+export const HABIT_WINDOW_DAYS = 7
+const HABIT_ID_BASE = 5000
+export const HABIT_DEFAULT_TIME = '20:00'
+export function buildHabitNotifications(S, now = new Date()) {
+  const r = S?.habitReminder
+  if (!r?.on) return []
+  const [hour, minute] = (r.time || HABIT_DEFAULT_TIME).split(':').map(Number)
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return []
+  const date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12)
+  const notifications = []
+  for (let offset = 0; offset < HABIT_WINDOW_DAYS; offset++) {
+    const day = new Date(date)
+    day.setDate(date.getDate() + offset)
+    const iso = isoOf(day)
+    const open = habitNudgeFor(S, iso)
+    if (!open) continue
+    const at = new Date(day)
+    at.setHours(hour, minute, 0, 0)
+    if (at <= now) continue
+    notifications.push({
+      id: HABIT_ID_BASE + offset,
+      title: t(HABIT_COPY.title),
+      body: t(HABIT_COPY.lines[lineIndex(iso, HABIT_COPY.lines.length)], open.names),
+      schedule: { at, allowWhileIdle: true },
+    })
+  }
+  return notifications
+}
+
 // (Re)schedule the workout-day reminder: one one-off notification per future calendar date in
 // the bounded window. Cheap enough to run after any state change — the plan or the reminder time
 // may just have been edited. `interactive` gates the OS permission prompt to the Settings toggle;
@@ -243,15 +305,19 @@ export async function syncReminder(S, interactive = false) {
       ...LEGACY_REMINDER_IDS,
       ...Array.from({ length: REMINDER_WINDOW_DAYS }, (_, d) => ({ id: REMINDER_ID_BASE + d })),
       ...Array.from({ length: NUDGE_WINDOW_DAYS }, (_, d) => ({ id: NUDGE_ID_BASE + d })),
+      ...Array.from({ length: WATER_WINDOW_DAYS }, (_, d) => ({ id: WATER_ID_BASE + d })),
+      ...Array.from({ length: HABIT_WINDOW_DAYS }, (_, d) => ({ id: HABIT_ID_BASE + d })),
     ] }).catch(() => {})
     const r = S.reminder
     // The background check (lib/nudge-check.js) follows what is scheduled: nothing, nothing to check.
     const check = notifications => import('./nudge-check.js').then(m => m.armNudgeCheck(S, notifications)).catch(() => {})
-    if (!r?.on) { await check([]); return true }
+    const anyNudge = (S.waterReminder?.on && isOn(S, 'water')) || (S.habitReminder?.on && isOn(S, 'habits'))
+    if (!r?.on && !anyNudge) { await check([]); return true }
     let perm = await LocalNotifications.checkPermissions()
     if (perm.display !== 'granted' && interactive) perm = await LocalNotifications.requestPermissions()
     if (perm.display !== 'granted') { await check([]); return false }
-    const notifications = [...buildReminderNotifications(S), ...buildNudgeNotifications(S)]
+    // buildWaterNotifications and buildHabitNotifications no-op when their module is off.
+    const notifications = [...buildReminderNotifications(S), ...buildNudgeNotifications(S), ...buildWaterNotifications(S), ...buildHabitNotifications(S)]
     if (notifications.length) await LocalNotifications.schedule({ notifications })
     await check(notifications)
     return true
@@ -342,11 +408,11 @@ export async function printHtml(html, name, { paper = 'a4', footer } = {}) {
 // The root is never pruned: a manual export saved there carries the same name, and nothing
 // tells it apart from an old automatic copy, so those stay for the person to clear (Import
 // backup still reads either kind).
-export const AUTO_BACKUP_DIR = 'openGym'
+export const AUTO_BACKUP_DIR = 'JelloGym'
 export const AUTO_BACKUP_KEEP = 14
 // Only the exact names writeAutoBackup gives its files are ever pruned; anything else someone
 // keeps in the folder is theirs.
-const AUTO_BACKUP_NAME = /^opengym-backup-\d{4}-\d{2}-\d{2}(-[2-9])?\.json$/
+const AUTO_BACKUP_NAME = /^jellogym-backup-\d{4}-\d{2}-\d{2}(-[2-9])?\.json$/
 
 // Android's scoped storage lets an install write over, list and delete only the files it wrote
 // itself. After a reinstall, or with the test build beside the real one, today's name can belong
@@ -373,7 +439,7 @@ export async function writeAutoBackup(state) {
   // day then went without a copy, silently, while the newest file there was another install's.
   let name = null
   for (const suffix of ['', '-2', '-3', '-4', '-5', '-6', '-7', '-8', '-9']) {
-    const n = `opengym-backup-${day}${suffix}.json`
+    const n = `jellogym-backup-${day}${suffix}.json`
     try { await write(n); name = n; break } catch (e) { /* owned by another install, or the disk said no: the next name */ }
   }
   if (!name) return   // best effort — the private mirror in Directory.Data still has the data
@@ -407,7 +473,7 @@ async function pruneAutoBackups({ Filesystem, Directory }, written) {
    { uri, label }       the chosen folder, and its name as the picker showed it
    { lost, lostLabel }  the folder stopped accepting copies; they go to Documents/openGym again
    {}                   the default, Documents/openGym */
-export const BACKUP_FOLDER_FILE = 'opengym-backup-folder.json'
+export const BACKUP_FOLDER_FILE = 'jellogym-backup-folder.json'
 
 // The plugin proxy lives here and is never handed through a promise: a Capacitor plugin proxy
 // answers every property, `then` included, so a promise resolving to it never settles (#42/#58).
@@ -470,7 +536,7 @@ async function releaseFolder(uri) {
 async function writeToChosenFolder(state, day) {
   const folder = await backupFolder()
   if (!folder.uri) return false
-  const name = `opengym-backup-${day}.json`
+  const name = `jellogym-backup-${day}.json`
   try {
     await loadFolderPlugin()
     const { ok } = await folderPlugin.check({ uri: folder.uri })
