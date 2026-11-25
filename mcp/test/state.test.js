@@ -1,10 +1,11 @@
 // Tests for mcp/src/state.js — the uid/config resolution and what a read failure looks like.
 // state.js reads JELLOGYM_DATA at module load and caches module-globally, so each case stubs the
 // env and imports a fresh copy. Temp dirs only; nothing here touches a real profile.
-import { describe, test, expect, afterEach, afterAll, vi } from 'vitest'
+import { describe, test, expect, beforeEach, afterEach, afterAll, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { permissionDenied, stubWatch } from './helpers.js'
 
 const DB = JSON.stringify({
   users: [{ id: 'alex', name: 'Alex', created: '2026-01-01' }],
@@ -38,21 +39,21 @@ async function load(dir, uid = 'alex') {
   return import('../src/state.js')
 }
 
-afterEach(() => { vi.unstubAllEnvs() })
+let watches
+beforeEach(() => { watches = stubWatch() })
+afterEach(() => { watches.restore(); vi.unstubAllEnvs() })
 afterAll(() => { dirs.forEach(d => fs.rmSync(d, { recursive: true, force: true })) })
 
 describe('a read failure is not "you never signed in"', () => {
   test('without a watcher, a state file that goes away stops being served from the cache (#653)', async () => {
     const dir = mk({ 'db.json': DB, 'state-alex.json': JSON.stringify({ unit: 'lb' }) })
-    const watch = vi.spyOn(fs, 'watch').mockImplementation(() => { throw new Error('no fs.watch here') })
-    try {
-      const { getState } = await load(dir)
-      expect(getState().unit).toBe('lb')
-      fs.rmSync(path.join(dir, 'state-alex.json'))
-      expect(getState()).toBeNull()
-      fs.writeFileSync(path.join(dir, 'state-alex.json'), JSON.stringify({ unit: 'kg' }))
-      expect(getState().unit).toBe('kg')
-    } finally { watch.mockRestore() }
+    watches.watch.mockImplementationOnce(() => { throw new Error('no fs.watch here') })
+    const { getState } = await load(dir)
+    expect(getState().unit).toBe('lb')
+    fs.rmSync(path.join(dir, 'state-alex.json'))
+    expect(getState()).toBeNull()
+    fs.writeFileSync(path.join(dir, 'state-alex.json'), JSON.stringify({ unit: 'kg' }))
+    expect(getState().unit).toBe('kg')
   })
 
   test('no state file at all is still null — that account really has never synced', async () => {
@@ -79,16 +80,18 @@ describe('a read failure is not "you never signed in"', () => {
     expect(err.message).toMatch(/cannot read state-alex\.json: EISDIR/)
   })
 
-  // Root reads a mode-000 file anyway (the GitLab CI container runs as root), so the failure this
-  // needs cannot be made there.
-  const asRoot = typeof process.getuid === 'function' && process.getuid() === 0
-  test.skipIf(asRoot)('a permission failure names the file, not the server\'s path', async () => {
+  // Windows chmod does not produce EACCES, so inject the failure the reader has to report.
+  test('an injected EACCES names the file, not the server\'s path', async () => {
     const dir = mk({ 'db.json': DB, 'state-alex.json': '{}' })
-    fs.chmodSync(path.join(dir, 'state-alex.json'), 0o000)
+    const file = path.join(dir, 'state-alex.json')
     const { getState } = await load(dir)
+    const realReadFileSync = fs.readFileSync
+    const read = vi.spyOn(fs, 'readFileSync').mockImplementation((f, ...rest) => {
+      if (f === file) throw permissionDenied(file)
+      return realReadFileSync(f, ...rest)
+    })
     let err = null
-    try { getState() } catch (e) { err = e }
-    fs.chmodSync(path.join(dir, 'state-alex.json'), 0o600)
+    try { getState() } catch (e) { err = e } finally { read.mockRestore() }
     expect(err).toBeTruthy()
     expect(err.code).toBe('EIO')
     expect(err.message).toMatch(/cannot read state-alex\.json: EACCES/)

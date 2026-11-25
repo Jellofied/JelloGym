@@ -9,6 +9,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { stubWatch } from './helpers.js'
 
 const API = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'api')
 const HAVE_API = fs.existsSync(path.join(API, 'node_modules', '@simplewebauthn', 'server'))
@@ -35,12 +36,14 @@ const DOC = {
 }
 
 let child, dataDir, base, log = ''
+let watches
 const get = async p => (await fetch(base + p, { headers: { authorization: 'Bearer ' + TOKEN } })).json()
 const stored = () => JSON.parse(fs.readFileSync(path.join(dataDir, `state-${UID}.json`), 'utf8'))
 
 describe.skipIf(!HAVE_API)('log_workout against the real api', () => {
   let logWorkout, getState, TOOLS
   beforeAll(async () => {
+    watches = stubWatch()
     dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gym-mcp-e2e-'))
     fs.writeFileSync(path.join(dataDir, 'secret'), SECRET, { mode: 0o600 })
     fs.writeFileSync(path.join(dataDir, 'db.json'), JSON.stringify({ users: [{ id: UID, name: 'Matt', created: new Date().toISOString() }], creds: [], subs: [], invites: [] }))
@@ -70,6 +73,7 @@ describe.skipIf(!HAVE_API)('log_workout against the real api', () => {
     ;({ TOOLS } = await import('../src/tools.js'))
   }, 30000)
   afterAll(() => {
+    watches?.restore()
     child?.kill('SIGKILL')
     if (dataDir) fs.rmSync(dataDir, { recursive: true, force: true })
   })
