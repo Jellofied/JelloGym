@@ -1,6 +1,6 @@
-# Contributing to openGym
+# Contributing to JelloGym
 
-Thanks for taking a look. openGym is deliberately small and light on dependencies, and the aim is
+Thanks for taking a look. JelloGym is deliberately small and light on dependencies, and the aim is
 to keep it that way: easy to read, easy to self-host.
 
 ## Project layout
@@ -70,8 +70,8 @@ cd mcp && npm test
 
 ## Using AI tools
 
-openGym itself is developed with Claude Code (see
-[How openGym is built](README.md#how-opengym-is-built)), and [`CLAUDE.md`](CLAUDE.md) holds the
+JelloGym itself is developed with Claude Code (see
+[How JelloGym is built](README.md#how-jellogym-is-built)), and [`CLAUDE.md`](CLAUDE.md) holds the
 project context for it. You're welcome to use whatever tools you like for a pull request. The bar
 is the same either way: you understand the change, it's tested, and you can answer questions about
 it in review.
@@ -130,6 +130,6 @@ login issues are an origin mismatch.
 
 Before your first pull request is merged, you sign the [Contributor License Agreement](CLA.md) once,
 by commenting the sentence the CLA check asks for on your pull request. It covers all your past and
-future contributions. You keep the copyright in your work; openGym may use and relicense it, which
+future contributions. You keep the copyright in your work; JelloGym may use and relicense it, which
 is what keeps the app possible in the App Store and Google Play long term. Every version released
 under the [GNU AGPL v3.0](LICENSE) stays available under it.

@@ -7,7 +7,7 @@ Read docs/LIFE_MODULES.md before planning or building any life-module feature.
 
 ## What this is
 
-openGym is a self-hosted gym and body-weight tracker. Two containers (`api` + `web`) plus a
+JelloGym is a self-hosted gym and body-weight tracker. Two containers (`api` + `web`) plus a
 `./data` folder the user owns: no third-party account, no telemetry. Passkey (WebAuthn) login,
 installable as a PWA, and Capacitor apps for Android and iPhone (with an Apple Watch app and
 widgets) that work on their own or synced to a server. License: AGPL-3.0-or-later; the exercise

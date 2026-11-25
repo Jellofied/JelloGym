@@ -4,7 +4,7 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/hero-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="assets/readme/hero-light.png">
-  <img src="assets/readme/hero-dark.png" alt="openGym: the gym tracker you host yourself" width="100%">
+  <img src="assets/readme/hero-dark.png" alt="JelloGym: the gym tracker you host yourself" width="100%">
 </picture>
 </p>
 
@@ -19,20 +19,20 @@
 <a href="https://github.com/DuarteSantos8/openGym/releases/latest"><img src="assets/readme/badge-android.svg" alt="Download the Android APK" height="40"></a>
 <a href="docs/SELF_HOSTING.md"><img src="assets/readme/badge-selfhost.svg" alt="Self-host with Docker" height="40"></a>
 
-<a href="https://trendshift.io/repositories/88268?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-88268" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/88268" alt="DuarteSantos8%2FopenGym | Trendshift" width="250" height="55"/></a>
-<a href="https://trendshift.io/repositories/88268?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-88268" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/88268/weekly?language=JavaScript" alt="DuarteSantos8%2FopenGym | Trendshift" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/88268?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-88268" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/88268" alt="DuarteSantos8%2FJelloGym | Trendshift" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/88268?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-88268" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/88268/weekly?language=JavaScript" alt="DuarteSantos8%2FJelloGym | Trendshift" width="250" height="55"/></a>
 
 [Website](https://opengym.ch) · [Live demo](https://opengym.ch/demo/) · [Roadmap](ROADMAP.md) · [Changelog](CHANGELOG.md)
 
 <a href="https://buymeacoffee.com/duartesantos"><img src="assets/readme/badge-coffee.svg" alt="Buy me a coffee" height="40"></a>
-<a href="https://ko-fi.com/opengym"><img src="assets/readme/badge-kofi.svg" alt="Support openGym on Ko-fi" height="40"></a>
+<a href="https://ko-fi.com/opengym"><img src="assets/readme/badge-kofi.svg" alt="Support JelloGym on Ko-fi" height="40"></a>
 
 </div>
 
-## Why openGym
+## Why JelloGym
 
 Most workout apps keep your data on their servers, push you towards a subscription, or vanish
-when the company does. openGym runs on your own box, keeps your data in a folder you control, and
+when the company does. JelloGym runs on your own box, keeps your data in a folder you control, and
 is yours to fork. It still behaves like a modern app: installable on the home screen, passkey
 sign-in, works offline, syncs between your phone and your laptop.
 
@@ -148,7 +148,7 @@ You need [Docker](https://docs.docker.com/get-docker/) with Compose.
 
 ```bash
 git clone https://github.com/DuarteSantos8/openGym
-cd openGym
+cd JelloGym
 cp .env.example .env
 docker compose pull      # prebuilt images, amd64 + arm64 (skip this to build from source)
 docker compose up -d
@@ -163,8 +163,8 @@ Traefik and nginx, and there are separate guides for
 [HTTPS on a LAN](docs/SELF_HOSTING_HTTPS.md), [a Mac with Tailscale](docs/SELF_HOSTING_MAC.md) and [Kubernetes](docs/SELF_HOSTING_KUBERNETES.md).
 
 > [!NOTE]
-> Images are published from the same tag to `ghcr.io/duartesantos8/opengym-{api,web}`
-> (what `docker-compose.yml` pulls) and `registry.gitlab.com/duartesantos8/opengym/{api,web}`. Swap
+> Images are published from the same tag to `ghcr.io/duartesantos8/jellogym-{api,web}`
+> (what `docker-compose.yml` pulls) and `registry.gitlab.com/duartesantos8/jellogym/{api,web}`. Swap
 > the `image:` lines if you prefer GitLab's registry, or run `docker compose up -d --build` to build
 > locally. Either way you don't need Node on the host.
 
@@ -179,7 +179,7 @@ Traefik and nginx, and there are separate guides for
 | `NGINX_PORT` | Port the web container listens on inside the container | `80` |
 | `BACKEND` | Name of the API service that `/api` is proxied to | `api` |
 | `PORT` | Port the API listens on; the web container proxies to the same value | `3000` |
-| `RP_NAME` | Name shown in the passkey prompt | `openGym` |
+| `RP_NAME` | Name shown in the passkey prompt | `JelloGym` |
 | `SESSION_DAYS` | How long a sign-in lasts, in days | `90` |
 | `ADMIN_UIDS` | User ids that get the admin dashboard, comma-separated | *(none)* |
 | `FIRST_USER_ADMIN` | `1`: the first profile created on an empty instance becomes its admin | *(off)* |
@@ -214,7 +214,7 @@ the phone, no account) or connect them to your server and sync.
 | **iPhone and iPad**, with the **Apple Watch** app | The [App Store](https://apps.apple.com/app/id6822275400), in every App Store country |
 | **Android** | The signed APK from the [latest release](https://github.com/DuarteSantos8/openGym/releases/latest) or [opengym.ch](https://opengym.ch), in three sizes: **Standard** (`openGym-X.Y.Z.apk`, animations at 180 px, about 315 MB), **Plus** (`openGym-Plus-X.Y.Z.apk`, 240 px, about 424 MB) and **HD** (`openGym-HD-X.Y.Z.apk`, 360 px, about 760 MB). It updates itself and stays the kind you picked |
 | **Google Play** | In closed testing: Google wants 12 testers for 14 days before it lets everyone in. Join the [tester group](https://groups.google.com/g/opengym-testers/about), then [opt in](https://play.google.com/apps/testing/ch.duartesantos.opengym). It installs right over the APK and keeps your data |
-| **Wear OS watch** (beta) | Rides along with the Google Play test: once Google's watch review is done, "openGym Beta" shows up in the Play Store on your Galaxy Watch, Pixel Watch and friends. Details: [docs/WEAR_OS.md](docs/WEAR_OS.md) |
+| **Wear OS watch** (beta) | Rides along with the Google Play test: once Google's watch review is done, "JelloGym Beta" shows up in the Play Store on your Galaxy Watch, Pixel Watch and friends. Details: [docs/WEAR_OS.md](docs/WEAR_OS.md) |
 
 Every APK sits next to its `.sha256`. The APK and the Play app share one signing key, so you can
 switch between them (or between Standard, Plus and HD) without losing data. Details, building it
@@ -333,9 +333,9 @@ exists because its CI builds the multi-arch images and the SBOMs for its registr
 built and signed on the release machine and attached to the GitHub release). Nothing is merged there by hand. In the changelog, `!NN` refers to a GitLab merge request
 from the weeks in August and September 2026 when the project lived there.
 
-## How openGym is built
+## How JelloGym is built
 
-People have asked about this, so plainly: **openGym is developed with
+People have asked about this, so plainly: **JelloGym is developed with
 [Claude Code](https://claude.com/claude-code)**, Anthropic's coding agent. A large share of the
 code, tests and documentation is drafted in Claude Code sessions, and the repository carries a
 [`CLAUDE.md`](CLAUDE.md) with the project context those sessions start from.
@@ -357,7 +357,7 @@ the same way.
 
 ## Support
 
-openGym is free and stays free: AGPL, no paid tier, nothing held back for sponsors. If it replaced a
+JelloGym is free and stays free: AGPL, no paid tier, nothing held back for sponsors. If it replaced a
 paid tracker for you and you'd like to chip in, there's Buy Me a Coffee, Ko-fi and GitHub Sponsors
 (the app has the same three under Settings → About & updates, and on the iPhone a shortcut to
 leaving an App Store review). A star, a bug report or a pull request helps just as much.
@@ -365,7 +365,7 @@ leaving an App Store review). A star, a bug report or a pull request helps just 
 <a href="https://buymeacoffee.com/duartesantos" target="_blank">
   <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="60" width="217">
 </a>
-<a href="https://ko-fi.com/opengym" target="_blank"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support openGym on Ko-fi" height="60"></a>
+<a href="https://ko-fi.com/opengym" target="_blank"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support JelloGym on Ko-fi" height="60"></a>
 
 [GitHub Sponsors](https://github.com/sponsors/DuarteSantos8)
 
@@ -373,7 +373,7 @@ leaving an App Store review). A star, a bug report or a pull request helps just 
 
 ## License
 
-**openGym's own code** is licensed under the [GNU AGPL v3.0](LICENSE). You can self-host, use,
+**JelloGym's own code** is licensed under the [GNU AGPL v3.0](LICENSE). You can self-host, use,
 modify and share it; if you run a modified version as a network service, you have to offer that
 version's source under the same license.
 
@@ -382,10 +382,10 @@ version's source under the same license.
 > © Aliaksandr Makatserchyk, [Gym visual](https://gymvisual.com/), licensed for use in openGym only:
 > 180 px in this repository and on self-hosted servers, larger only inside the app packages. A
 > non-commercial fork may keep them unmodified with the notice; anything else needs your own licence
-> from gymvisual.com. The exercise text in `catalogue/` is openGym's and open to contributions.
+> from gymvisual.com. The exercise text in `catalogue/` is JelloGym's and open to contributions.
 
 **Contributing:** pull requests are signed off once with the [Contributor License Agreement](CLA.md):
-you keep the copyright in your work, openGym may use and relicense it (so the app can stay in the
+you keep the copyright in your work, JelloGym may use and relicense it (so the app can stay in the
 App Store and Google Play long term), and every version released under the AGPL stays AGPL.
 
 Full third-party notices, including the body-diagram geometry, are in [NOTICE.md](NOTICE.md).

@@ -333,7 +333,7 @@ jobs:
           context: ./api
           target: default
           load: true
-          tags: opengym-api:default
+          tags: jellogym-api:default
           cache-from: type=gha,scope=ci-api
           cache-to: type=gha,mode=max,scope=ci-api
       - name: api, coach target
@@ -342,7 +342,7 @@ jobs:
           context: ./api
           target: coach
           load: true
-          tags: opengym-api:coach
+          tags: jellogym-api:coach
           cache-from: type=gha,scope=ci-api-coach
           cache-to: type=gha,mode=max,scope=ci-api-coach
       # No target, exactly like docker-publish.yml: what that workflow ships is whatever stage
@@ -352,7 +352,7 @@ jobs:
         with:
           context: ./api
           load: true
-          tags: opengym-api:published
+          tags: jellogym-api:published
           cache-from: type=gha,scope=ci-api
       - name: web
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -360,34 +360,34 @@ jobs:
           context: .
           file: ./web/Dockerfile
           load: true
-          tags: opengym-web:ci
+          tags: jellogym-web:ci
           cache-from: type=gha,scope=ci-web
           cache-to: type=gha,mode=max,scope=ci-web
 
       - name: the image published as :latest has no AI runtime either
         run: |
-          docker run --rm opengym-api:published node -e \
+          docker run --rm jellogym-api:published node -e \
             'import("@anthropic-ai/claude-agent-sdk").then(()=>{console.error("AI runtime present in the published image -- the last Dockerfile stage is no longer the runtime-free one");process.exit(1)},()=>process.exit(0))'
-          ! docker run --rm opengym-api:published codex --version
-          ! docker run --rm opengym-api:published bwrap --version
+          ! docker run --rm jellogym-api:published codex --version
+          ! docker run --rm jellogym-api:published bwrap --version
 
       - name: the default image boots and serves, with no AI runtime in it
         run: |
           docker network create og
-          docker run -d --name api-default --network og --network-alias api -e DATA_DIR=/data -p 3000:3000 opengym-api:default
+          docker run -d --name api-default --network og --network-alias api -e DATA_DIR=/data -p 3000:3000 jellogym-api:default
           for i in $(seq 1 30); do
             curl -fsS http://localhost:3000/api/config >/dev/null 2>&1 && break
             sleep 1
           done
           curl -fsS http://localhost:3000/api/config | tee /dev/stderr | grep -q '"invite_only"'
-          docker run --rm opengym-api:default node -e \
+          docker run --rm jellogym-api:default node -e \
             'import("@anthropic-ai/claude-agent-sdk").then(()=>{console.error("AI runtime present in the default image");process.exit(1)},()=>process.exit(0))'
 
       # The stack the way docker-compose.yml wires it: nginx in the web image proxies /api to
       # the api container. A green api image and a green web image can still not talk.
       - name: the web image serves the app and reaches the api through nginx
         run: |
-          docker run -d --name web --network og -p 8080:80 opengym-web:ci
+          docker run -d --name web --network og -p 8080:80 jellogym-web:ci
           for i in $(seq 1 30); do curl -fsS http://localhost:8080/ >/dev/null 2>&1 && break; sleep 1; done
           curl -fsS http://localhost:8080/ | grep -q 'id="root"'
           curl -fsS http://localhost:8080/api/config | grep -q '"invite_only"'
@@ -395,7 +395,7 @@ jobs:
 
       - name: the coach image carries a runnable Agent SDK
         run: |
-          docker run --rm opengym-api:coach node --input-type=module -e '
+          docker run --rm jellogym-api:coach node --input-type=module -e '
             const { adapterFor } = await import("./coach/adapters/index.js");
             const r = await adapterFor("claude").check();
             if (!r.ok) { console.error(r.error); process.exit(1); }
@@ -404,22 +404,22 @@ jobs:
 
       - name: the coach image carries the Codex runtime and its sandbox
         run: |
-          docker run --rm opengym-api:coach codex --version
-          docker run --rm opengym-api:coach bwrap --version
+          docker run --rm jellogym-api:coach codex --version
+          docker run --rm jellogym-api:coach bwrap --version
           # Owned by the user jobs drop to, and 0700: a credential cache readable by anything
           # else in the container would undo the point of dropping privileges at all.
-          test "$(docker run --rm opengym-api:coach stat -c '%U %a' /coach-auth)" = "coach 700"
+          test "$(docker run --rm jellogym-api:coach stat -c '%U %a' /coach-auth)" = "coach 700"
 
       - name: neither Codex nor its sandbox is in the default image
         run: |
-          ! docker run --rm opengym-api:default codex --version 2>/dev/null
-          ! docker run --rm opengym-api:default bwrap --version 2>/dev/null
+          ! docker run --rm jellogym-api:default codex --version 2>/dev/null
+          ! docker run --rm jellogym-api:default bwrap --version 2>/dev/null
 
       - name: the privilege drop can actually be performed in the image
         run: |
           # canDropPrivileges() fails closed, so a missing `coach` user disables every job,
           # including the fixture provider.
-          docker run --rm opengym-api:default id coach
+          docker run --rm jellogym-api:default id coach
 
   # The Android app compiles, its JVM unit tests pass, and the phone bundle inside it is the
   # mobile flavour (check-mobile-bundle runs inside build:mobile). Debug and unsigned: signing

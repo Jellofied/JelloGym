@@ -1,4 +1,4 @@
-# Builds the iPhone app on a Mac and starts it in the simulator: nobody working on openGym has a
+# Builds the iPhone app on a Mac and starts it in the simulator: nobody working on JelloGym has a
 # Mac to hand, so this is where a change to the iOS shell (ios/, a Capacitor plugin, the mobile
 # build) is first compiled. It uses the repo's own 180 px media like every other CI build; the
 # App Store build gets its animations on the release machine (docs/APP_STORES.md).
@@ -145,8 +145,8 @@ jobs:
               xcrun simctl shutdown "$UDID" || true
               xcrun simctl boot "$UDID" && xcrun simctl bootstatus "$UDID" -b
             fi
-            xcrun simctl terminate "$UDID" ch.opengym.app 2>/dev/null || true
-            xcrun simctl launch --console-pty "$UDID" ch.opengym.app > build/console.log 2>&1 &
+            xcrun simctl terminate "$UDID" ch.jellogym.app 2>/dev/null || true
+            xcrun simctl launch --console-pty "$UDID" ch.jellogym.app > build/console.log 2>&1 &
             LPID=$!
             for i in $(seq 48); do grep -q "RestAlert" build/console.log && break; sleep 5; done
             if grep -q "RestAlert" build/console.log; then reached=$attempt; break; fi
@@ -168,16 +168,16 @@ jobs:
         working-directory: frontend/ios/App
         run: |
           UDID=$(cat build/udid.txt)
-          xcrun simctl terminate "$UDID" ch.opengym.app 2>/dev/null || true
-          xcrun simctl launch "$UDID" ch.opengym.app -OpenGymWidgetPreview
-          DATA=$(xcrun simctl get_app_container "$UDID" ch.opengym.app data)
+          xcrun simctl terminate "$UDID" ch.jellogym.app 2>/dev/null || true
+          xcrun simctl launch "$UDID" ch.jellogym.app -JelloGymWidgetPreview
+          DATA=$(xcrun simctl get_app_container "$UDID" ch.jellogym.app data)
           for i in $(seq 60); do test -f "$DATA/Documents/widget-preview/done.txt" && break; sleep 2; done
           mkdir -p build/widgets
           cp "$DATA"/Documents/widget-preview/*.png build/widgets/ 2>/dev/null || true
           ls -la build/widgets
           test -f "$DATA/Documents/widget-preview/done.txt" || { echo "::error::the widget pictures were never drawn"; exit 1; }
           # The extension really is in the app, with its own Info.plist.
-          test -f build/dd/Build/Products/Debug-iphonesimulator/App.app/PlugIns/OpenGymWidgets.appex/Info.plist || { echo "::error::no widget extension in the app"; exit 1; }
+          test -f build/dd/Build/Products/Debug-iphonesimulator/App.app/PlugIns/JelloGymWidgets.appex/Info.plist || { echo "::error::no widget extension in the app"; exit 1; }
       # The watch app on its own in a watch simulator, with the demo session it carries
       # (SessionStore.demoJSON: text only, no exercise media), for a look at it.
       - name: Show the watch app
@@ -186,7 +186,7 @@ jobs:
         timeout-minutes: 30
         working-directory: frontend/ios/App
         run: |
-          APP=build/dd/Build/Products/Debug-watchsimulator/OpenGymWatch.app
+          APP=build/dd/Build/Products/Debug-watchsimulator/JelloGymWatch.app
           test -d "$APP" || { echo "::warning::no watch app was built"; exit 1; }
           if ! xcrun simctl list runtimes | grep -q watchOS; then xcodebuild -downloadPlatform watchOS || true; fi
           mkdir -p build/watch
@@ -206,17 +206,17 @@ jobs:
             # A synthetic clip (a square moving, made with ffmpeg for the tests; no exercise media)
             # in the app's own container, to show the animation path renders: a GIF, as the phone
             # sends it (the watch decodes what WatchBridgePlugin made, never WebP itself).
-            DATA=$(xcrun simctl get_app_container "$UDID" ch.opengym.app.watchkitapp data 2>/dev/null || true)
+            DATA=$(xcrun simctl get_app_container "$UDID" ch.jellogym.app.watchkitapp data 2>/dev/null || true)
             CLIP=""
             if [ -n "$DATA" ]; then mkdir -p "$DATA/tmp" && cp WatchCore/Tests/WatchCoreTests/Fixtures/synthetic-square.gif "$DATA/tmp/clip.gif" && CLIP="$DATA/tmp/clip.gif"; fi
-            # shot <file> <screen> [-OpenGymWatchAX | -OpenGymWatchAOD]: one demo screen (SessionStore
+            # shot <file> <screen> [-JelloGymWatchAX | -JelloGymWatchAOD]: one demo screen (SessionStore
             # startDemo: every kind of set, text only), the clip on the first exercise. Prints the pid.
             shot() {
               local file=$1 screen=$2; shift 2
-              xcrun simctl terminate "$UDID" ch.opengym.app.watchkitapp 2>/dev/null || true
-              local args=(-OpenGymWatchDemo -OpenGymWatchScreen "$screen" "$@")
-              if [ -n "$CLIP" ]; then args+=(-OpenGymWatchDemoClip "$CLIP"); fi
-              PID=$(xcrun simctl launch "$UDID" ch.opengym.app.watchkitapp "${args[@]}" | awk '{print $NF}')
+              xcrun simctl terminate "$UDID" ch.jellogym.app.watchkitapp 2>/dev/null || true
+              local args=(-JelloGymWatchDemo -JelloGymWatchScreen "$screen" "$@")
+              if [ -n "$CLIP" ]; then args+=(-JelloGymWatchDemoClip "$CLIP"); fi
+              PID=$(xcrun simctl launch "$UDID" ch.jellogym.app.watchkitapp "${args[@]}" | awk '{print $NF}')
               sleep 6
               xcrun simctl io "$UDID" screenshot "build/watch/$size-$file.png" >/dev/null
             }
@@ -225,19 +225,19 @@ jobs:
             done
             # The app's language, not the watch's (the phone in German here); every optional thing
             # on (Settings → Apple Watch); the rest as the countdown alone.
-            shot "lang-de" set -OpenGymWatchLang de
-            shot "lang-de-rest" rest -OpenGymWatchLang de
-            shot "show-all" set -OpenGymWatchShow all
-            shot "rest-plain" rest -OpenGymWatchShow plain
+            shot "lang-de" set -JelloGymWatchLang de
+            shot "lang-de-rest" rest -JelloGymWatchLang de
+            shot "show-all" set -JelloGymWatchShow all
+            shot "rest-plain" rest -JelloGymWatchShow plain
             # The largest text size (accessibility XXXL) on the screens with the most on them.
             for screen in set side edit-weight weighin rest hold summary summary-end; do
-              shot "ax-$screen" "$screen" -OpenGymWatchAX
+              shot "ax-$screen" "$screen" -JelloGymWatchAX
             done
             # What each screen costs: the app's CPU time over 20 s once it is up (the simulator's
             # process, on the Mac). Always On (wrist down) should cost next to nothing.
             cpu() { ps -o time= -p "$1" 2>/dev/null | awk -F'[:.]' '{ if (NF==3) print $1*60+$2+$3/100; else print 0 }'; }
             # set-noclip: the same screen without the animation, to tell what the animation costs.
-            for spec in idle:idle set:set set-noclip:set:noclip rest:rest hold:hold set-aod:set:-OpenGymWatchAOD set-aod-noclip:set:-OpenGymWatchAOD:noclip rest-aod:rest:-OpenGymWatchAOD; do
+            for spec in idle:idle set:set set-noclip:set:noclip rest:rest hold:hold set-aod:set:-JelloGymWatchAOD set-aod-noclip:set:-JelloGymWatchAOD:noclip rest-aod:rest:-JelloGymWatchAOD; do
               IFS=: read -r file screen flag noclip <<< "$spec"
               if [ "$flag" = noclip ]; then flag=""; noclip=noclip; fi
               KEEP=$CLIP; if [ -n "$noclip" ]; then CLIP=""; fi
@@ -259,7 +259,7 @@ jobs:
         timeout-minutes: 30
         working-directory: frontend/ios/App
         run: |
-          APP=build/dd/Build/Products/Debug-watchsimulator/OpenGymWatch.app
+          APP=build/dd/Build/Products/Debug-watchsimulator/JelloGymWatch.app
           test -d "$APP" || exit 1
           mkdir -p build/watch-promo
           for kind in ultra 46mm; do
@@ -275,21 +275,21 @@ jobs:
             # The clock at 10:09, if this simulator lets the status bar be set.
             if xcrun simctl status_bar "$UDID" override --time "10:09" 2>build/watch-promo/status-bar-$kind.txt; then echo "$kind: status bar set" >> build/watch-promo/notes.txt; else echo "$kind: status_bar override not supported: $(cat build/watch-promo/status-bar-$kind.txt)" >> build/watch-promo/notes.txt; fi
             xcrun simctl install "$UDID" "$APP"
-            DATA=$(xcrun simctl get_app_container "$UDID" ch.opengym.app.watchkitapp data 2>/dev/null || true)
+            DATA=$(xcrun simctl get_app_container "$UDID" ch.jellogym.app.watchkitapp data 2>/dev/null || true)
             CLIP=""
             if [ -n "$DATA" ]; then mkdir -p "$DATA/tmp" && cp WatchCore/Tests/WatchCoreTests/Fixtures/synthetic-square.gif "$DATA/tmp/clip.gif" && CLIP="$DATA/tmp/clip.gif"; fi
             mkdir -p "build/watch-promo/$kind"
             promo() {
               local file=$1 screen=$2; shift 2
-              xcrun simctl terminate "$UDID" ch.opengym.app.watchkitapp 2>/dev/null || true
-              xcrun simctl launch "$UDID" ch.opengym.app.watchkitapp -OpenGymWatchDemo -OpenGymWatchScreen "$screen" "$@" >/dev/null
+              xcrun simctl terminate "$UDID" ch.jellogym.app.watchkitapp 2>/dev/null || true
+              xcrun simctl launch "$UDID" ch.jellogym.app.watchkitapp -JelloGymWatchDemo -JelloGymWatchScreen "$screen" "$@" >/dev/null
               sleep 6
               xcrun simctl io "$UDID" screenshot "build/watch-promo/$kind/$file.png" >/dev/null
             }
             promo 1-start idle
-            promo 2-set set -OpenGymWatchShow noclip
-            [ -n "$CLIP" ] && promo 2b-set-with-clip set -OpenGymWatchDemoClip "$CLIP"
-            promo 3-edit-weight edit-weight -OpenGymWatchShow noclip
+            promo 2-set set -JelloGymWatchShow noclip
+            [ -n "$CLIP" ] && promo 2b-set-with-clip set -JelloGymWatchDemoClip "$CLIP"
+            promo 3-edit-weight edit-weight -JelloGymWatchShow noclip
             promo 4-rest rest
             promo 5-superset superset
             promo 6-weigh-in weighin
@@ -315,7 +315,7 @@ jobs:
   # A walk through the app in the simulator (ios/App/AppUITests): a rest that ends while the app
   # is in the background must arrive as a notification, a sheet must stay above the keyboard, and
   # the training reminder and missed-day nudge must be pending with iOS once switched on (read
-  # through the -OpenGymUITestPending probe in MainViewController.swift).
+  # through the -JelloGymUITestPending probe in MainViewController.swift).
   # The exercise media are left out of this build; the screenshots show placeholders.
   ui-tests:
     needs: gate

@@ -1,4 +1,4 @@
-# openGym
+# JelloGym
 
 > Free, open-source gym & body-weight tracker (AGPL-3.0). Runs as a standalone
 > Android app (sideloaded APK) or self-hosted with Docker (passkey profiles,

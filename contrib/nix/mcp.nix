@@ -8,7 +8,7 @@
 }:
 
 buildNpmPackage rec {
-  pname = "opengym-mcp";
+  pname = "jellogym-mcp";
   inherit version;
 
   src = ./../../mcp;
@@ -27,24 +27,24 @@ buildNpmPackage rec {
 
   installPhase = ''
     runHook preInstall
-    mkdir -p $out/lib/opengym-mcp
-    cp -r node_modules $out/lib/opengym-mcp/
-    cp -r src $out/lib/opengym-mcp/
+    mkdir -p $out/lib/jellogym-mcp
+    cp -r node_modules $out/lib/jellogym-mcp/
+    cp -r src $out/lib/jellogym-mcp/
 
     # The MCP server imports shared training/domain helpers from ../../frontend/src/lib
     # (history, exercises, muscles, onerm, progression, workout-model, format, …). They are
-    # resolved relative to $out/lib/opengym-mcp/src, so they must sit at $out/lib/frontend/src/lib.
+    # resolved relative to $out/lib/jellogym-mcp/src, so they must sit at $out/lib/frontend/src/lib.
     mkdir -p $out/lib/frontend/src
     cp -r $frontendSrc/src/lib $out/lib/frontend/src/lib
 
     mkdir -p $out/bin
-    makeWrapper ${nodejs_22}/bin/node $out/bin/opengym-mcp \
-      --add-flags "$out/lib/opengym-mcp/src/index.js"
+    makeWrapper ${nodejs_22}/bin/node $out/bin/jellogym-mcp \
+      --add-flags "$out/lib/jellogym-mcp/src/index.js"
     runHook postInstall
   '';
 
   meta = with lib; {
-    description = "openGym MCP server — read-only stdio bridge for LLM clients";
+    description = "JelloGym MCP server — read-only stdio bridge for LLM clients";
     homepage = "https://gitlab.com/DuarteSantos8/opengym";
     license = licenses.agpl3Plus;
     platforms = nodejs.meta.platforms;

@@ -3,22 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Docs — openGym</title>
-<meta name="description" content="The complete openGym reference: every feature, installing on Android and iPhone, self-hosting with Docker, every .env setting, the AI Coach, importing from FitNotes/Strong/Hevy, backups, the MCP server, and how it's built.">
+<title>Docs — JelloGym</title>
+<meta name="description" content="The complete JelloGym reference: every feature, installing on Android and iPhone, self-hosting with Docker, every .env setting, the AI Coach, importing from FitNotes/Strong/Hevy, backups, the MCP server, and how it's built.">
 <meta name="theme-color" content="#000000">
 <meta name="robots" content="index,follow,max-image-preview:large">
 <link rel="preconnect" href="https://stats.duarte-santos.ch">
-<meta property="og:title" content="openGym Docs — the complete reference">
-<meta property="og:description" content="The complete openGym reference: every feature, self-hosting with Docker, every setting, the AI Coach, imports, backups, MCP, troubleshooting.">
+<meta property="og:title" content="JelloGym Docs — the complete reference">
+<meta property="og:description" content="The complete JelloGym reference: every feature, self-hosting with Docker, every setting, the AI Coach, imports, backups, MCP, troubleshooting.">
 <meta property="og:image" content="https://opengym.ch/img/social.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="openGym: your training, your data, your server. Two phones showing the home and workout screens.">
+<meta property="og:image:alt" content="JelloGym: your training, your data, your server. Two phones showing the home and workout screens.">
 <meta property="og:url" content="https://opengym.ch/docs.html">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="openGym">
+<meta property="og:site_name" content="JelloGym">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="openGym Docs: the complete reference">
+<meta name="twitter:title" content="JelloGym Docs: the complete reference">
 <meta name="twitter:image" content="https://opengym.ch/img/social.jpg">
 <link rel="canonical" href="https://opengym.ch/docs.html">
 <link rel="icon" href="/favicon.ico" sizes="48x48">
@@ -31,7 +31,7 @@
 <!-- Umami web analytics for opengym.ch (self-hosted, cookieless). -->
 <script defer src="https://stats.duarte-santos.ch/script.js" data-website-id="db36019e-50f4-453c-9c56-d0588aefe233"></script>
 <script type="application/ld+json">
-{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Is openGym really free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes — free as in cost and as in freedom (AGPL-3.0). No pro tier, no locked features, no ads, and the license keeps every fork open source too."}}, {"@type": "Question", "name": "Is openGym in the App Store and on Google Play?", "acceptedAnswer": {"@type": "Answer", "text": "The App Store: yes, since 23 October 2026, for iPhone and Apple Watch (https://apps.apple.com/app/id6822275400). Google Play: in closed testing since 3 November 2026. Join the tester group (https://groups.google.com/g/opengym-testers/about) and opt in (https://play.google.com/apps/testing/ch.duartesantos.opengym); it goes public once 12 testers have kept it for 14 days. The Wear OS watch app comes along as a beta. Until then the signed APK is a direct download."}}, {"@type": "Question", "name": "Should I pick the mobile app or self-host?", "acceptedAnswer": {"@type": "Answer", "text": "To simply track your training: the mobile app. For data on your own hardware, synced across devices, with profiles for the people you train with: self-host with Docker. The backup file migrates everything between the two, or pair the app to your server."}}, {"@type": "Question", "name": "What's on the openGym roadmap?", "acceptedAnswer": {"@type": "Answer", "text": "A release roughly every one to two weeks. v1.4.4 brought programmes, a fresh look, Modules, the Google Play closed test and a Wear OS beta; v1.4.5 brings Google Play for everyone, F-Droid and remote MCP. After that, in rough order: circuits and EMOM, a trainer role, OIDC sign-in, a free on-device Coach, Strava and Garmin, and database storage. The full plan is in ROADMAP.md on GitHub."}}, {"@type": "Question", "name": "Was openGym written with AI?", "acceptedAnswer": {"@type": "Answer", "text": "openGym is developed with Claude Code, Anthropic's coding agent; a large share of the code, tests and docs is drafted that way, and every change is reviewed, tested and released by the maintainer. The app itself calls no AI service unless an admin switches on the optional AI coach."}}, {"@type": "Question", "name": "Where does the exercise database come from?", "acceptedAnswer": {"@type": "Answer", "text": "The exercise text lives in openGym's own catalogue in the repository, open to fixes and translations by pull request; the oldest entries came from ExerciseDB under MIT. The pictures and animations are licensed from Gym visual for use in openGym only and ship with it at 180 px. Reusing them anywhere else needs your own licence from gymvisual.com."}}, {"@type": "Question", "name": "What does the AGPL license mean for me?", "acceptedAnswer": {"@type": "Answer", "text": "You can self-host, use, modify and share openGym freely. Only if you run a modified version as a network service must you offer that version's source under the same license. Using or self-hosting it unmodified obliges you to nothing."}}]}
+{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Is JelloGym really free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes — free as in cost and as in freedom (AGPL-3.0). No pro tier, no locked features, no ads, and the license keeps every fork open source too."}}, {"@type": "Question", "name": "Is JelloGym in the App Store and on Google Play?", "acceptedAnswer": {"@type": "Answer", "text": "The App Store: yes, since 23 October 2026, for iPhone and Apple Watch (https://apps.apple.com/app/id6822275400). Google Play: in closed testing since 3 November 2026. Join the tester group (https://groups.google.com/g/opengym-testers/about) and opt in (https://play.google.com/apps/testing/ch.duartesantos.opengym); it goes public once 12 testers have kept it for 14 days. The Wear OS watch app comes along as a beta. Until then the signed APK is a direct download."}}, {"@type": "Question", "name": "Should I pick the mobile app or self-host?", "acceptedAnswer": {"@type": "Answer", "text": "To simply track your training: the mobile app. For data on your own hardware, synced across devices, with profiles for the people you train with: self-host with Docker. The backup file migrates everything between the two, or pair the app to your server."}}, {"@type": "Question", "name": "What's on the JelloGym roadmap?", "acceptedAnswer": {"@type": "Answer", "text": "A release roughly every one to two weeks. v1.4.4 brought programmes, a fresh look, Modules, the Google Play closed test and a Wear OS beta; v1.4.5 brings Google Play for everyone, F-Droid and remote MCP. After that, in rough order: circuits and EMOM, a trainer role, OIDC sign-in, a free on-device Coach, Strava and Garmin, and database storage. The full plan is in ROADMAP.md on GitHub."}}, {"@type": "Question", "name": "Was JelloGym written with AI?", "acceptedAnswer": {"@type": "Answer", "text": "JelloGym is developed with Claude Code, Anthropic's coding agent; a large share of the code, tests and docs is drafted that way, and every change is reviewed, tested and released by the maintainer. The app itself calls no AI service unless an admin switches on the optional AI coach."}}, {"@type": "Question", "name": "Where does the exercise database come from?", "acceptedAnswer": {"@type": "Answer", "text": "The exercise text lives in JelloGym's own catalogue in the repository, open to fixes and translations by pull request; the oldest entries came from ExerciseDB under MIT. The pictures and animations are licensed from Gym visual for use in openGym only and ship with it at 180 px. Reusing them anywhere else needs your own licence from gymvisual.com."}}, {"@type": "Question", "name": "What does the AGPL license mean for me?", "acceptedAnswer": {"@type": "Answer", "text": "You can self-host, use, modify and share JelloGym freely. Only if you run a modified version as a network service must you offer that version's source under the same license. Using or self-hosting it unmodified obliges you to nothing."}}]}
 </script>
 </head>
 <body class="topnav dock">
@@ -40,7 +40,7 @@
 <nav><div class="wrap nav-in">
   <a class="brand" href="/">
     <img src="icon-180.png" alt="" width="24" height="24">
-    openGym
+    JelloGym
   </a>
   <div class="nav-quick">
     <a class="ql site" href="/#features">Features</a>
@@ -92,7 +92,7 @@
   </div>
   <p class="side-label">Documentation</p>
   <div class="side-group">
-    <a class="side-link" href="#flavors"><b>Which openGym?</b></a>
+    <a class="side-link" href="#flavors"><b>Which JelloGym?</b></a>
   </div>
   <div class="side-group">
     <a class="side-link" href="#android"><b>Install on Android</b></a>
@@ -187,7 +187,7 @@
 <main id="main" class="wrap prose">
   <h1>Docs</h1>
   <p class="lead">The complete reference — every feature, every setting, every way to run
-     openGym. The same documents live
+     JelloGym. The same documents live
      <a href="https://github.com/DuarteSantos8/openGym/blob/main/docs/README.md" rel="noopener">in the repository</a>,
      next to the code they describe.</p>
 
@@ -202,7 +202,7 @@
     <a href="#build">Build it yourself</a>
     <a href="#faq">FAQ</a>
   </div>
-  <h2 id="flavors">Which openGym? The three flavors</h2>
+  <h2 id="flavors">Which JelloGym? The three flavors</h2>
   <p>One codebase, three ways to run it. Everything below applies to all of them unless a
      section says otherwise.</p>
   <table class="cfg">
@@ -226,7 +226,7 @@
     <li>Your browser will ask whether it may install apps. Allow it: that is how any app
         from outside the Play Store gets installed (<i>sideloading</i>), and you can take the
         permission back right after.</li>
-    <li>Open the downloaded <code>openGym-&lt;version&gt;.apk</code>, confirm, done. No account, no setup.</li>
+    <li>Open the downloaded <code>JelloGym-&lt;version&gt;.apk</code>, confirm, done. No account, no setup.</li>
   </ol>
   <div class="note">Google Play is in closed testing: <a href="https://groups.google.com/g/opengym-testers/about" rel="noopener">join the testers</a>,
     then <a href="https://play.google.com/apps/testing/ch.duartesantos.opengym" rel="noopener">opt in</a>. Everyone else, the APK is the way in: it is
@@ -236,7 +236,7 @@
      for that version, each with a <code>.sha256</code> checksum beside it. Got the file from
      anywhere else? Check it against that checksum before installing.</p>
   <p><b>Updates come to you:</b> when a newer release exists, Settings &rarr; About &amp; updates
-     shows "openGym vX available". One tap downloads the signed APK, checks its SHA-256 against
+     shows "JelloGym vX available". One tap downloads the signed APK, checks its SHA-256 against
      the published checksum and opens the installer (no checksum, no install; the first time
      Android asks for the "install unknown apps" permission). Each APK updates to its own kind
      (Standard to Standard, Plus to Plus, HD to HD), so nobody gets surprised by a download twice
@@ -250,7 +250,7 @@
      away, stays quiet. The missed-workout nudge, when switched on, is scheduled the same way.</p>
 
   <h2 id="iphone">Use on iPhone</h2>
-  <p>openGym has a native iPhone and iPad app, with an <b>Apple Watch</b> app, widgets, a Live
+  <p>JelloGym has a native iPhone and iPad app, with an <b>Apple Watch</b> app, widgets, a Live
      Activity and Apple Health. It is the same app as on Android: use it on its own or connect it
      to your server.</p>
   <ul>
@@ -258,7 +258,7 @@
         in every App Store country. To try the next version early, the
         <a href="https://testflight.apple.com/join/RKATb61k" rel="noopener">public TestFlight beta</a>
         is the same app.</li>
-    <li><b>Self-host + home screen:</b> open your own openGym instance in Safari &rarr;
+    <li><b>Self-host + home screen:</b> open your own JelloGym instance in Safari &rarr;
         <b>Share</b> &rarr; <b>Add to Home Screen</b>. A full-screen app with its own icon,
         passkey sign-in and sync.</li>
     <li><b>Build it yourself</b> (a fork, say): open <code>frontend/ios</code> in Xcode with a free
@@ -482,7 +482,7 @@
         most, never after you trained, never mid-workout, and only between the hours you pick if
         you like. Your gyms stay on the phone (not on your server, not in backups). Android uses
         the system's own proximity alerts, no Google services needed; it can be slow to notice
-        you arrived, so with openGym's battery use on <i>Unrestricted</i> a short GPS look near
+        you arrived, so with JelloGym's battery use on <i>Unrestricted</i> a short GPS look near
         the gym ("Quick arrival check") nudges you at the door instead. A workout you logged on
         your laptop that the phone hasn't synced yet counts too: a paired phone asks your server
         first.</li>
@@ -497,7 +497,7 @@
      You need <a href="https://docs.docker.com/get-docker/" rel="noopener">Docker</a> with
      Compose:</p>
   <pre><code>git clone https://github.com/DuarteSantos8/openGym
-cd openGym
+cd JelloGym
 cp .env.example .env
 docker compose pull    # prebuilt images (amd64 + arm64) — skip to build from source
 docker compose up -d</code></pre>
@@ -511,13 +511,13 @@ curl http://localhost:8080/api/health      # {"ok":true,...}</code></pre>
      <code>docker compose up -d --build</code> — no Node needed locally either way.</p>
 
   <h3 id="sh-passkey">The passkey rule (read this before opening a port)</h3>
-  <p>openGym signs you in with <b>passkeys</b> (WebAuthn — Face ID, fingerprint, or your
+  <p>JelloGym signs you in with <b>passkeys</b> (WebAuthn — Face ID, fingerprint, or your
      password manager). Browsers enforce two rules: a passkey is bound to an exact
      <b>hostname</b>, and it only works over <b>HTTPS</b> — with one exception,
      <code>http://localhost</code>.</p>
   <p>So <code>http://localhost:8080</code> works on the Docker machine, but your phone
      <b>cannot</b> use <code>http://192.168.x.x:8080</code> — that's neither localhost nor
-     HTTPS, and the passkey prompt won't appear. To use openGym from your phone you need a
+     HTTPS, and the passkey prompt won't appear. To use JelloGym from your phone you need a
      real HTTPS hostname (below). Until then, LAN devices can still use <b>guest mode</b>
      (data stays in that browser), <a href="#admin-signin">password sign-in</a>
      (<code>PASSWORD_LOGIN=1</code>) or the <a href="#mobile-server">mobile app's pairing
@@ -589,7 +589,7 @@ docker compose up -d   # restart alone does NOT re-read .env</code></pre>
      changes go up when the connection is back.</p>
 
   <h3 id="sh-stack">Fitting it into an existing stack</h3>
-  <p>The defaults assume openGym is alone: a service called <code>api</code> on port 3000,
+  <p>The defaults assume JelloGym is alone: a service called <code>api</code> on port 3000,
      nginx on 80 inside the web container. Merging into a compose file that already has an
      <code>api</code>, or fronting it with your own proxy on another port, is four
      <code>.env</code> settings — <code>WEB_PORT</code>, <code>NGINX_PORT</code>,
@@ -623,7 +623,7 @@ ORIGIN=https://example.com          # no /gym here</code></pre>
   <p>Works like any Docker host, with four catches. <b>Run both services</b>: a stack with only
      <code>web</code> loads, but sign-in never works and <b>Continue without account</b> quietly
      makes you a guest whose data stays in that browser. <b>Use absolute paths</b> for the data
-     volume and <code>env_file</code> (for example <code>/share/Container/opengym/.env</code>), because
+     volume and <code>env_file</code> (for example <code>/share/Container/jellogym/.env</code>), because
      the NAS's compose UI keeps the file in a folder of its own. <b>Set <code>ORIGIN</code> to the
      exact address you type</b>, port included (<code>ORIGIN=http://10.11.0.4:3030</code>,
      <code>RP_ID=10.11.0.4</code>), then recreate the stack; otherwise every save is refused and the
@@ -653,7 +653,7 @@ docker compose up -d</code></pre>
   <table class="cfg">
     <tr><td><code>RP_ID</code></td><td>Hostname passkeys are bound to. A <b>bare hostname</b>: no scheme, no port, no slash. Default <code>localhost</code>.</td></tr>
     <tr><td><code>ORIGIN</code></td><td>Full URL the app is served from — <i>with</i> scheme, <i>without</i> trailing slash. Must match the address bar exactly. Default <code>http://localhost:8080</code>.</td></tr>
-    <tr><td><code>RP_NAME</code></td><td>Name shown in the passkey prompt. Default <code>openGym</code>.</td></tr>
+    <tr><td><code>RP_NAME</code></td><td>Name shown in the passkey prompt. Default <code>JelloGym</code>.</td></tr>
     <tr><td><code>WEB_PORT</code></td><td>Host port for the web UI. Default <code>8080</code>.</td></tr>
     <tr><td><code>NGINX_PORT</code></td><td>Port the web container listens on, inside the container. Default <code>80</code>.</td></tr>
     <tr><td><code>BACKEND</code></td><td>Name of the API service <code>/api</code> is proxied to — change it if yours isn't called <code>api</code>.</td></tr>
@@ -670,7 +670,7 @@ docker compose up -d</code></pre>
     <tr><td><code>PASSWORD_LOGIN</code></td><td>Set <code>1</code> to offer <a href="#admin-signin">name-and-password sign-in</a> next to passkeys. Default: off.</td></tr>
     <tr><td><code>TRUST_PROXY</code></td><td>Let the sign-in throttle read the visitor's address from proxy headers. <code>1</code> in <code>docker-compose.yml</code>, where the web container is the only way to the API; leave it off if you run the API without it.</td></tr>
     <tr><td><code>DEFAULT_LANG</code></td><td>Language of the sign-in screen and of new profiles, e.g. <code>de</code> or <code>pt-BR</code>. Default: the visitor's browser language.</td></tr>
-    <tr><td><code>BASE_PATH</code></td><td>Serve openGym under a subpath such as <code>/gym</code>, no trailing slash, when your proxy passes that prefix through. A proxy that strips it needs this empty. Default: the site root. See <a href="#sh-stack">existing stack</a>.</td></tr>
+    <tr><td><code>BASE_PATH</code></td><td>Serve JelloGym under a subpath such as <code>/gym</code>, no trailing slash, when your proxy passes that prefix through. A proxy that strips it needs this empty. Default: the site root. See <a href="#sh-stack">existing stack</a>.</td></tr>
     <tr><td><code>MEDIA_UPLOADS</code></td><td>Set <code>0</code> to turn off photo and video uploads (custom-exercise pictures, workout photos); the link field stays. Default: on.</td></tr>
     <tr><td><code>MEDIA_QUOTA_MB</code></td><td>Upload space per profile in MB; <code>0</code> for no cap. Default <code>200</code>. Lower it on an instance with open signup.</td></tr>
     <tr><td><code>MEDIA_MIN_FREE_MB</code></td><td>Uploads are refused while the disk under <code>./data</code> has less free space than this. Default <code>512</code>. Size limits per file type are in <a href="https://github.com/DuarteSantos8/openGym/blob/main/docs/SELF_HOSTING.md#photos-and-videos-of-custom-exercises" rel="noopener">SELF_HOSTING.md</a>.</td></tr>
@@ -749,7 +749,7 @@ ALLOW_GUEST=0              # remove "Continue without account"</code></pre>
      <code>http://</code> server on your home network works too if you type the address with
      <code>http://</code> in front (the app reminds you it is not encrypted). Pairing fails while the browser works?
      A reverse proxy or a login page in front of <code>/api/</code> is answering instead of
-     openGym; see <a href="https://github.com/DuarteSantos8/openGym/blob/main/docs/SELF_HOSTING.md#phone-app-and-cors" rel="noopener">Phone app and CORS</a>. A connected app keeps working without a network on the
+     JelloGym; see <a href="https://github.com/DuarteSantos8/openGym/blob/main/docs/SELF_HOSTING.md#phone-app-and-cors" rel="noopener">Phone app and CORS</a>. A connected app keeps working without a network on the
      last copy it synced — it shows an "Offline" line under the header and pushes your changes
      as soon as the connection is back, same as the browser PWA. Settings → Account → <b>Disconnect</b> syncs one last
      time, then drops the device cleanly back to local mode. (For the curious: it's
@@ -757,7 +757,7 @@ ALLOW_GUEST=0              # remove "Continue without account"</code></pre>
      <code>api/server.js</code>.)</p>
 
   <h2 id="coach">Let an AI coach write your plan</h2>
-  <p>Separate from the read-only bridge above, openGym has an optional <b>AI Coach</b>. Answer a
+  <p>Separate from the read-only bridge above, JelloGym has an optional <b>AI Coach</b>. Answer a
      few questions — goal, days a week, session length, equipment, anything to work around — and
      it designs a week of routines. Later it reviews what you actually logged and proposes
      changes; you can also ask it to look at <b>one workout</b> (a debrief: a score, what went
@@ -773,7 +773,7 @@ ALLOW_GUEST=0              # remove "Continue without account"</code></pre>
         you logged in the review window, weigh-ins, your intake answers, and a few preferences —
         under a pseudonym. Your name, e-mail, passkeys and everyone else's data are not in it,
         by construction: fields are copied in one by one, nothing is passed through.</li>
-    <li>That payload goes to the provider <b>you</b> configured — there is no openGym service in
+    <li>That payload goes to the provider <b>you</b> configured — there is no JelloGym service in
         the middle.</li>
     <li>The answer is parsed and <b>validated against a closed list of change types</b> (add,
         remove or swap an exercise, sets, reps, schedule, progression policy…). An answer that
@@ -798,8 +798,8 @@ ALLOW_GUEST=0              # remove "Continue without account"</code></pre>
 
   <h3 id="coach-local">Run it fully local — no cloud, no cost</h3>
   <p>A model on your own hardware is just the compatible endpoint with no key. The usual way is
-     an Ollama container next to openGym:</p>
-  <pre><code># docker-compose.yml — add next to the openGym services (same file = same network)
+     an Ollama container next to JelloGym:</p>
+  <pre><code># docker-compose.yml — add next to the JelloGym services (same file = same network)
   ollama:
     image: ollama/ollama
     restart: unless-stopped
@@ -849,7 +849,7 @@ ALLOW_GUEST=0              # remove "Continue without account"</code></pre>
      <a href="https://github.com/DuarteSantos8/openGym/blob/main/docs/AI_COACH.md" rel="noopener">docs/AI_COACH.md</a>.</p>
 
   <h2 id="mcp">Ask an AI about your training (MCP)</h2>
-  <p>openGym ships an optional <b>MCP server</b>: a small read-only bridge that lets a client
+  <p>JelloGym ships an optional <b>MCP server</b>: a small read-only bridge that lets a client
      like Claude Desktop, Cursor or Cline answer questions from your actual log — <i>"what
      did I bench last week?"</i>, <i>"which muscle have I not trained this month?"</i>. It
      runs on your machine, is spawned by the client over stdio, reads the same
@@ -891,7 +891,7 @@ ALLOW_GUEST=0              # remove "Continue without account"</code></pre>
   <h3 id="imp-hevy">Hevy, directly over the API</h3>
   <p>With <b>Hevy Pro</b>, skip the CSV: create an API key under
      <a href="https://hevy.com/settings?developer" rel="noopener">Hevy → Settings → Developer</a>,
-     then in openGym use <b>Settings → Data &amp; backup → Import from Hevy</b>, paste the key (used only for that
+     then in JelloGym use <b>Settings → Data &amp; backup → Import from Hevy</b>, paste the key (used only for that
      import — never saved), and choose any mix of <b>workouts</b>, <b>routines</b> and
      <b>weigh-ins</b>. Workout days that already have data here are left alone; imported
      routines are always added as new plans.</p>
@@ -925,7 +925,7 @@ Leg Day,Leg Press,2026-08-21,200,1</code></pre>
      weights, settings — into one file. On the mobile app it goes out through the share sheet
      (Files, AirDrop, mail…); in the browser it downloads. <b>Import backup</b> restores it
      anywhere: another phone, your self-hosted instance, or a fresh install. That file is the
-     whole point of openGym — your training log as a file <i>you</i> own.</p>
+     whole point of JelloGym — your training log as a file <i>you</i> own.</p>
   <h3>Per instance (self-hosted)</h3>
   <p>Everything lives in <code>./data</code> on your host:</p>
   <table class="cfg">
@@ -961,7 +961,7 @@ Leg Day,Leg Press,2026-08-21,200,1</code></pre>
      are signed on the release machine, because the sharper animations inside them may never
      sit in a CI run (licence). The GitLab mirror's CI builds images and SBOMs for its own
      registry.</p>
-  <p>openGym is developed with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a>,
+  <p>JelloGym is developed with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a>,
      Anthropic's coding agent: a large share of the code, tests and documentation is drafted in
      Claude Code sessions. What goes in, every review and every release is the maintainer's call,
      and each release is tested on a staging instance and on real phones first. The app itself
@@ -1076,7 +1076,7 @@ Leg Day,Leg Press,2026-08-21,200,1</code></pre>
      collected and nothing to buy.</p>
   <h3>How do I use it on my iPhone?</h3>
   <p>The easy way is the <a href="https://apps.apple.com/app/id6822275400" rel="noopener">App Store app</a>,
-     on its own or connected to your server. Or as a web app: open your openGym address (it has to be
+     on its own or connected to your server. Or as a web app: open your JelloGym address (it has to be
      <code>https://</code>) in <b>Safari</b>, tap <b>Share → Add to Home Screen</b>, open the new icon
      and create your profile; Face ID makes the passkey. It runs full screen, works offline and can
      send notifications from there. Just curious? The <a href="/demo/">demo</a> works in Safari too.</p>
@@ -1093,7 +1093,7 @@ Leg Day,Leg Press,2026-08-21,200,1</code></pre>
   <p>Yes, if the instance allows it: <code>PASSWORD_LOGIN=1</code> in <code>.env</code>, then
      <code>docker compose up -d</code>. Off by default. The sign-in screen gets <b>Sign in with
      password</b> (profile name or sign-in e-mail), new profiles can use one, and a passkey profile
-     adds one under <b>Settings → Account → Password</b>. openGym never sends mail, so a forgotten
+     adds one under <b>Settings → Account → Password</b>. JelloGym never sends mail, so a forgotten
      password is reset with a one-time code from the admin dashboard. Switching it off later locks
      out profiles that only have a password. <a href="#admin-signin">More on signing in</a>.</p>
   <h3>What is guest mode, and can I turn it off?</h3>
@@ -1135,17 +1135,17 @@ Leg Day,Leg Press,2026-08-21,200,1</code></pre>
      The full plan is in
      <a href="https://github.com/DuarteSantos8/openGym/blob/main/ROADMAP.md" rel="noopener">ROADMAP.md</a>;
      ideas and pull requests welcome.</p>
-  <h3>Was openGym written with AI?</h3>
+  <h3>Was JelloGym written with AI?</h3>
   <p>It's developed with Claude Code, and a large share of the code is drafted that way &mdash;
      reviewed, tested and released by the maintainer. The app itself calls no AI service unless
      you switch the coach on. See <a href="#arch">How it's built</a>.</p>
   <h3>Where does the exercise database come from?</h3>
-  <p>The text is openGym's own: one JSON file per exercise in
+  <p>The text is JelloGym's own: one JSON file per exercise in
      <a href="https://github.com/DuarteSantos8/openGym/blob/main/catalogue/README.md" rel="noopener">catalogue/</a>,
-     translations next to it, and fixes welcome as pull requests. The 1,324 exercises openGym
+     translations next to it, and fixes welcome as pull requests. The 1,324 exercises JelloGym
      started with came from ExerciseDB by way of hasaneyldrm/exercises-dataset, and their
      original text stays under <b>MIT</b>; everything written since is AGPL like the rest of
-     openGym.</p>
+     JelloGym.</p>
   <p>The pictures and animations are a different matter: they are &copy; Aliaksandr
      Makatserchyk, <a href="https://gymvisual.com/" rel="noopener">Gym visual</a>, licensed for
      use in openGym only, at 180&nbsp;px in the repository and on servers and larger only inside
@@ -1154,15 +1154,15 @@ Leg Day,Leg Press,2026-08-21,200,1</code></pre>
      Full third-party notices, including the body-diagram geometry, are in
      <a href="https://github.com/DuarteSantos8/openGym/blob/main/NOTICE.md" rel="noopener">NOTICE.md</a>.</p>
   <h3>What does the AGPL mean for me?</h3>
-  <p>You can self-host, use, modify and share openGym freely. If you run a <i>modified</i>
+  <p>You can self-host, use, modify and share JelloGym freely. If you run a <i>modified</i>
      version as a network service, you must offer that version's source under the same
-     license — that's the clause that keeps openGym from ever becoming someone's closed,
+     license — that's the clause that keeps JelloGym from ever becoming someone's closed,
      proprietary product. Just using or self-hosting it unmodified obliges you to
      nothing.</p>
 </main>
 
 <footer><div class="wrap foot">
-  <span class="c">openGym · AGPL-3.0 · © 2026 <a href="https://duarte-santos.ch" rel="noopener">Duarte Santos</a></span>
+  <span class="c">JelloGym · AGPL-3.0 · © 2026 <a href="https://duarte-santos.ch" rel="noopener">Duarte Santos</a></span>
   <div class="links">
     <a href="docs.html">Docs</a>
     <a href="about.html">About</a>

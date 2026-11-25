@@ -4,7 +4,7 @@ Short answers, with a link to the long one.
 
 ### What does it cost?
 
-Nothing. openGym is open source under the AGPL: no subscription, no paid tier, no ads. If you'd like
+Nothing. JelloGym is open source under the AGPL: no subscription, no paid tier, no ads. If you'd like
 to support it anyway, there's [Buy Me a Coffee](https://buymeacoffee.com/duartesantos).
 
 ### Do I need my own server?
@@ -20,9 +20,9 @@ No, there are three ways to use it:
 
 ### Is there an iPhone app?
 
-Yes: [openGym is in the App Store](https://apps.apple.com/app/id6822275400), for iPhone and Apple
+Yes: [JelloGym is in the App Store](https://apps.apple.com/app/id6822275400), for iPhone and Apple
 Watch, in every App Store country. It works on the phone alone or connected to your own server.
-You can also add a self-hosted openGym to your home screen from Safari (a full PWA that works
+You can also add a self-hosted JelloGym to your home screen from Safari (a full PWA that works
 offline), or build the app onto your own phone with Xcode; both are in [MOBILE.md](MOBILE.md).
 
 ### Is it on Google Play?
@@ -46,12 +46,12 @@ inside the web image, so not even those are downloaded. The AI coach, if an admi
 the training data it needs to the provider you configured; [AI_COACH.md](AI_COACH.md) lists exactly
 what. Push notifications go through your browser's push service, as all web push does.
 
-### Was openGym written with AI?
+### Was JelloGym written with AI?
 
 It's developed with [Claude Code](https://claude.com/claude-code), Anthropic's coding agent, and a
 large share of the code, tests and docs is drafted that way. The maintainer decides what goes in,
 reviews it, and tests every release on a staging instance and on real phones. The longer answer is in
-the [README](../README.md#how-opengym-is-built).
+the [README](../README.md#how-jellogym-is-built).
 
 ### Does the app itself use AI?
 
@@ -101,9 +101,9 @@ an exercise and something measured. See [DATA_IMPORTS.md](DATA_IMPORTS.md).
 ### Can I reuse the exercise images in my own project?
 
 No. They are © Aliaksandr Makatserchyk, Gym visual, licensed for use in openGym only and not covered
-by openGym's license. Anything outside openGym needs your own licence from
+by JelloGym's license. Anything outside JelloGym needs your own licence from
 [gymvisual.com](https://gymvisual.com/). Details in [NOTICE.md](../NOTICE.md). The exercise text in
-[catalogue/](../catalogue/README.md) is a different story: that's openGym's, and fixes are welcome.
+[catalogue/](../catalogue/README.md) is a different story: that's JelloGym's, and fixes are welcome.
 
 ### Where do I ask something that isn't here?
 

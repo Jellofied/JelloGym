@@ -1,12 +1,12 @@
-# openGym MCP server
+# JelloGym MCP server
 
 A [Model Context Protocol](https://modelcontextprotocol.io) bridge that lets an external LLM
-application (Claude Desktop, Cursor, Cline, Continue, etc.) read your openGym profile —
+application (Claude Desktop, Cursor, Cline, Continue, etc.) read your JelloGym profile —
 routines, workouts, body-weight log, estimated 1RMs, and muscle balance — directly from your
 self-hosted `./data` directory, and log a workout you describe to it.
 
 It runs locally as a stdio process spawned by the LLM client and adds no new container. The
-read tools need no authentication: they read the same `state-<uid>.json` files the openGym api
+read tools need no authentication: they read the same `state-<uid>.json` files the JelloGym api
 already writes, and the LLM never sees passkeys, VAPID keys, or session secrets. The one write
 tool, `log_workout`, is off until you pair it with your server (see
 [Logging workouts](#logging-workouts)).
@@ -36,7 +36,7 @@ to answer for — its user id is in `./data/db.json` under `users[].id`:
 node src/index.js
 
 # multi-user instance, or just to be explicit:
-OPENGYM_UID=<your-uid> OPENGYM_DATA=/path/to/openGym/data node src/index.js
+JELLOGYM_UID=<your-uid> JELLOGYM_DATA=/path/to/JelloGym/data node src/index.js
 ```
 
 ### 3. Register with your LLM client
@@ -47,12 +47,12 @@ Add the server to your LLM client's MCP config. For Claude Desktop, edit
 ```jsonc
 {
   "mcpServers": {
-    "opengym": {
+    "jellogym": {
       "command": "node",
-      "args": ["/absolute/path/to/openGym/mcp/src/index.js"],
+      "args": ["/absolute/path/to/JelloGym/mcp/src/index.js"],
       "env": {
-        "OPENGYM_DATA": "/absolute/path/to/openGym/data",
-        "OPENGYM_UID": "<your-uid>"   // optional — auto-detected if you have one profile
+        "JELLOGYM_DATA": "/absolute/path/to/JelloGym/data",
+        "JELLOGYM_UID": "<your-uid>"   // optional — auto-detected if you have one profile
       }
     }
   }
@@ -62,7 +62,7 @@ Add the server to your LLM client's MCP config. For Claude Desktop, edit
 For Cursor and other MCP-compatible clients, see the client's MCP docs — the same `command` +
 `args` + `env` shape is what every stdio MCP server expects.
 
-Restart the client; you should see the openGym tools appear with "serving profile \<name\>" on
+Restart the client; you should see the JelloGym tools appear with "serving profile \<name\>" on
 the server's stderr.
 
 ## Tools
@@ -106,7 +106,7 @@ re-interpret them.
 
 The LLM turns that into exercises and sets; the tool matches the exercises against your library,
 builds the workout the way the app's Finish button does (PR badges, the next suggested weight,
-warm-ups kept out of volume) and saves it through your openGym server, so every signed-in
+warm-ups kept out of volume) and saves it through your JelloGym server, so every signed-in
 device shows it within half a minute. Asking for the same thing twice logs it once.
 
 Exercise names are matched the way a CSV import matches them. A common name resolves to the
@@ -138,9 +138,9 @@ address and a sign-in:
 
    ```jsonc
    "env": {
-     "OPENGYM_DATA": "/absolute/path/to/openGym/data",
-     "OPENGYM_URL": "https://gym.example.com",
-     "OPENGYM_TOKEN": "<the token pair.mjs printed>"
+     "JELLOGYM_DATA": "/absolute/path/to/JelloGym/data",
+     "JELLOGYM_URL": "https://gym.example.com",
+     "JELLOGYM_TOKEN": "<the token pair.mjs printed>"
    }
    ```
 
@@ -148,15 +148,15 @@ Things to know about that token:
 
 - It is a **full sign-in to your profile**, the same kind the paired phone app holds, not a
   workout-only key. Your client's config file holds it in plain text; treat it like a password.
-- `OPENGYM_URL` has to be `https://` (plain `http://` only to `localhost`), so it never crosses a
+- `JELLOGYM_URL` has to be `https://` (plain `http://` only to `localhost`), so it never crosses a
   network in the clear.
 - It lasts `SESSION_DAYS` (90 days by default). **Sign out everywhere** in Settings ends it at
   once. Either way `log_workout` then says the token was not accepted: pair again.
 - Pairing again gets you a new token but does **not** end the old one. To retire a token you
   think has leaked, use Sign out everywhere (which also disconnects paired phones).
 - If the MCP server also reads a `./data` directory, the token has to belong to the same profile
-  (`OPENGYM_UID`); a token for another one is refused. The server can be remote: without
-  `OPENGYM_DATA` the read tools have nothing to read, but `log_workout` still works.
+  (`JELLOGYM_UID`); a token for another one is refused. The server can be remote: without
+  `JELLOGYM_DATA` the read tools have nothing to read, but `log_workout` still works.
 
 ### What it does not do (yet)
 
@@ -188,7 +188,7 @@ dependencies landed in `frontend/`, no public exports changed.
   `log_workout` uses the paired-session token the phone app already uses; no new kind of
   credential, no new api route.
 - **No telemetry.** The read tools make no network call. `log_workout` talks to your own
-  openGym server and nothing else. The process exits when the LLM client disconnects.
+  JelloGym server and nothing else. The process exits when the LLM client disconnects.
 
 ## Tests
 
@@ -225,4 +225,4 @@ a laptop and fails under `CI`). The workout it builds is tested in
 
 ## License
 
-AGPL-3.0-or-later, same as openGym.
+AGPL-3.0-or-later, same as JelloGym.

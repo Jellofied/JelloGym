@@ -1,4 +1,4 @@
-# openGym Helm chart. Mirrors kubernetes/ (the plain manifests); docs/SELF_HOSTING_KUBERNETES.md
+# JelloGym Helm chart. Mirrors kubernetes/ (the plain manifests); docs/SELF_HOSTING_KUBERNETES.md
 # explains the choices. Always one replica: the API keeps its data in JSON files on one volume,
 # so a second pod would be a second writer.
 
@@ -8,7 +8,7 @@ fullnameOverride: ""
 
 serviceAccount:
   create: true
-  # openGym never talks to the Kubernetes API.
+  # JelloGym never talks to the Kubernetes API.
   automount: false
   annotations: {}
   name: ""
@@ -55,7 +55,7 @@ ingress:
         - path: /
           pathType: Prefix
   tls: []
-  #  - secretName: opengym-tls
+  #  - secretName: jellogym-tls
   #    hosts:
   #      - opengym.example.com
 
@@ -74,7 +74,7 @@ httpRoute:
 # cert-manager.io/cluster-issuer annotation instead.
 certificate:
   enabled: false
-  secretName: opengym-tls
+  secretName: jellogym-tls
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt
@@ -94,7 +94,7 @@ affinity: {}
 
 api:
   image:
-    repository: ghcr.io/duartesantos8/opengym-api
+    repository: ghcr.io/duartesantos8/jellogym-api
     pullPolicy: IfNotPresent
     tag: 1.4.3               # keep in step with web.image.tag
   service:
@@ -110,7 +110,7 @@ api:
     DATA_DIR: /data
     RP_ID: opengym.example.com
     ORIGIN: https://opengym.example.com
-    RP_NAME: openGym
+    RP_NAME: JelloGym
     INVITE_ONLY: ""          # "1" = signup needs an invite code
     ALLOW_GUEST: ""          # "0" = no "Continue without account"
     DEFAULT_LANG: ""         # en, de, pt-BR, th, ...
@@ -151,7 +151,7 @@ api:
 
 web:
   image:
-    repository: ghcr.io/duartesantos8/opengym-web
+    repository: ghcr.io/duartesantos8/jellogym-web
     pullPolicy: IfNotPresent
     tag: 1.4.3
   service:

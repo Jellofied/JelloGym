@@ -1,5 +1,5 @@
 {
-  description = "openGym — self-hosted gym & body-weight tracker";
+  description = "JelloGym — self-hosted gym & body-weight tracker";
 
   inputs = {
     # A release branch, not nixos-unstable: this flake is contributed packaging that has to
@@ -21,16 +21,16 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        opengymPackages = import ./default.nix { inherit pkgs; };
+        jellogymPackages = import ./default.nix { inherit pkgs; };
 
-        opengymNixOSModule = self.nixosModules.opengym;
+        jellogymNixOSModule = self.nixosModules.jellogym;
 
         testConfig = nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
-            opengymNixOSModule
+            jellogymNixOSModule
             {
-              services.opengym = {
+              services.jellogym = {
                 enable = true;
                 rpId = "localhost";
                 origin = "http://localhost:8080";
@@ -44,7 +44,7 @@
           ];
         };
 
-        cfg = testConfig.config.services.opengym;
+        cfg = testConfig.config.services.jellogym;
 
         nginxEnabled = testConfig.config.services.nginx.enable;
 
@@ -52,9 +52,9 @@
         nginxTestConfig = nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
-            opengymNixOSModule
+            jellogymNixOSModule
             {
-              services.opengym = {
+              services.jellogym = {
                 enable = true;
                 nginx.enable = true;
               };
@@ -63,23 +63,23 @@
           ];
         };
 
-        check = pkgs.runCommand "opengym-module-check" { } ''
+        check = pkgs.runCommand "jellogym-module-check" { } ''
           set -euo pipefail
           # Verify the module evaluated correctly
-          echo "services.opengym.enable = ${if cfg.enable then "true" else "false"}"
-          echo "services.opengym.apiPort = ${toString cfg.apiPort}"
-          echo "services.opengym.rpId = ${cfg.rpId}"
-          echo "services.opengym.origin = ${cfg.origin}"
+          echo "services.jellogym.enable = ${if cfg.enable then "true" else "false"}"
+          echo "services.jellogym.apiPort = ${toString cfg.apiPort}"
+          echo "services.jellogym.rpId = ${cfg.rpId}"
+          echo "services.jellogym.origin = ${cfg.origin}"
 
           # Verify systemd service exists
-          echo "systemd.services.opengym-api exists = ${
-            if testConfig.config.systemd.services ? opengym-api then "true" else "false"
+          echo "systemd.services.jellogym-api exists = ${
+            if testConfig.config.systemd.services ? jellogym-api then "true" else "false"
           }"
 
           # Verify extra environment is applied to the API unit
-          echo "opengym-api env MY_FLAG = ${
-            if testConfig.config.systemd.services.opengym-api.environment ? MY_FLAG then
-              testConfig.config.systemd.services.opengym-api.environment.MY_FLAG
+          echo "jellogym-api env MY_FLAG = ${
+            if testConfig.config.systemd.services.jellogym-api.environment ? MY_FLAG then
+              testConfig.config.systemd.services.jellogym-api.environment.MY_FLAG
             else
               "missing"
           }"
@@ -106,12 +106,12 @@
           }"
 
           # Verify frontend/media store paths are exposed for a web server
-          echo "services.opengym.web.root = ${cfg.web.root}"
-          echo "services.opengym.media.root = ${cfg.media.root}"
+          echo "services.jellogym.web.root = ${cfg.web.root}"
+          echo "services.jellogym.media.root = ${cfg.media.root}"
 
           # Verify user exists
-          echo "users.users.opengym exists = ${
-            if testConfig.config.users.users ? opengym then "true" else "false"
+          echo "users.users.jellogym exists = ${
+            if testConfig.config.users.users ? jellogym then "true" else "false"
           }"
 
           # All checks passed
@@ -119,29 +119,29 @@
         '';
       in
       {
-        packages = opengymPackages // {
-          default = opengymPackages.opengym-frontend;
+        packages = jellogymPackages // {
+          default = jellogymPackages.jellogym-frontend;
         };
 
-        apps.opengym = {
+        apps.jellogym = {
           type = "app";
           # Runs the full local stack: API + frontend (exercise media included) behind a throwaway
           # Caddy. Defaults to http://localhost:8080; env vars override ports/data/rp.
-          program = "${pkgs.writeShellScript "opengym" ''
+          program = "${pkgs.writeShellScript "jellogym" ''
             set -euo pipefail
 
-            DATA_DIR=''${OPENGYM_DATA_DIR:-/tmp/opengym-data}
-            API_PORT=''${OPENGYM_API_PORT:-3000}
-            WEB_PORT=''${OPENGYM_WEB_PORT:-8080}
+            DATA_DIR=''${JELLOGYM_DATA_DIR:-/tmp/jellogym-data}
+            API_PORT=''${JELLOGYM_API_PORT:-3000}
+            WEB_PORT=''${JELLOGYM_WEB_PORT:-8080}
             mkdir -p "$DATA_DIR"
 
             export PORT="$API_PORT"
             export DATA_DIR
-            export RP_ID=''${OPENGYM_RP_ID:-localhost}
-            export ORIGIN=''${OPENGYM_ORIGIN:-http://localhost:$WEB_PORT}
+            export RP_ID=''${JELLOGYM_RP_ID:-localhost}
+            export ORIGIN=''${JELLOGYM_ORIGIN:-http://localhost:$WEB_PORT}
             export ALLOW_GUEST=''${ALLOW_GUEST:-1}
 
-            ${opengymPackages.opengym-api}/bin/opengym-api &
+            ${jellogymPackages.jellogym-api}/bin/jellogym-api &
             API_PID=$!
 
             CFGDIR=$(mktemp -d)
@@ -164,28 +164,28 @@
                 reverse_proxy 127.0.0.1:$API_PORT
               }
               handle {
-                root * ${opengymPackages.opengym-frontend}/share/opengym
+                root * ${jellogymPackages.jellogym-frontend}/share/jellogym
                 try_files {path} /index.html
                 file_server
               }
             }
             EOF
 
-            echo "openGym running at http://localhost:$WEB_PORT (API on :$API_PORT, data in $DATA_DIR) — Ctrl-C to stop"
+            echo "JelloGym running at http://localhost:$WEB_PORT (API on :$API_PORT, data in $DATA_DIR) — Ctrl-C to stop"
             ${pkgs.caddy}/bin/caddy run --config "$CGFILE"
           ''}";
         };
 
-        apps.default = self.apps.${system}.opengym;
+        apps.default = self.apps.${system}.jellogym;
 
         checks = {
           nixos-module-eval = check;
         }
         // (pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
           # Boots a NixOS VM and exercises the full HTTP contract (API + nginx vhost + SPA).
-          opengym-nixos-test = import ./tests.nix {
+          jellogym-nixos-test = import ./tests.nix {
             inherit pkgs;
-            modules = [ opengymNixOSModule ];
+            modules = [ jellogymNixOSModule ];
           };
         });
 
@@ -196,7 +196,7 @@
             git
           ];
           shellHook = ''
-            echo "openGym dev shell (Node.js $(node --version))"
+            echo "JelloGym dev shell (Node.js $(node --version))"
             echo "  cd frontend && npm install && npm run dev"
             echo "  cd api && npm install && node server.js"
           '';
@@ -204,21 +204,21 @@
       }
     )
     // {
-      # Wraps the module so NixOS configurations using it get openGym packages built from this
-      # flake's LOCKED nixpkgs input. Importing contrib/nix/opengym.nix directly falls back to
+      # Wraps the module so NixOS configurations using it get JelloGym packages built from this
+      # flake's LOCKED nixpkgs input. Importing contrib/nix/jellogym.nix directly falls back to
       # the importing system's nixpkgs.
-      nixosModules.opengym =
+      nixosModules.jellogym =
         { pkgs, ... }:
         {
-          imports = [ ./opengym.nix ];
-          _module.args.opengymPkgs = self.packages.${pkgs.stdenv.hostPlatform.system} or null;
+          imports = [ ./jellogym.nix ];
+          _module.args.jellogymPkgs = self.packages.${pkgs.stdenv.hostPlatform.system} or null;
         };
-      nixosModules.default = self.nixosModules.opengym;
+      nixosModules.default = self.nixosModules.jellogym;
 
       # Conventional NixOS test output (boots a VM; also wired into checks on Linux).
-      nixosTests.opengym = import ./tests.nix {
+      nixosTests.jellogym = import ./tests.nix {
         pkgs = nixpkgs.legacyPackages.x86_64-linux;
-        modules = [ self.nixosModules.opengym ];
+        modules = [ self.nixosModules.jellogym ];
       };
     };
 }

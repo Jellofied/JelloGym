@@ -2,19 +2,19 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: opengym
-  name: opengym
+    app: jellogym
+  name: jellogym
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: opengym
+      app: jellogym
   template:
     metadata:
       labels:
-        app: opengym
+        app: jellogym
     spec:
       containers:
         - name: api
@@ -22,7 +22,7 @@ spec:
           # what you roll back to, where :latest changes under a pod whenever it is rescheduled.
           # The API and the web image of one version belong together. The published tags are
           # the version (1.4.3) and its minor line (1.4); see the release notes before a bump.
-          image: ghcr.io/duartesantos8/opengym-api:1.4.3
+          image: ghcr.io/duartesantos8/jellogym-api:1.4.3
           imagePullPolicy: IfNotPresent
           env:
             - name: PORT
@@ -56,7 +56,7 @@ spec:
               port: 3000
             initialDelaySeconds: 30
           volumeMounts:
-            - name: opengym-data
+            - name: jellogym-data
               mountPath: /data
           resources:
             requests:
@@ -64,7 +64,7 @@ spec:
             limits:
               memory: 512Mi
         - name: web
-          image: ghcr.io/duartesantos8/opengym-web:1.4.3   # same version as the api container
+          image: ghcr.io/duartesantos8/jellogym-web:1.4.3   # same version as the api container
           imagePullPolicy: IfNotPresent
           env:
             # Not the image's default 80: the image runs as uid 101, which can bind a port below
@@ -99,6 +99,6 @@ spec:
             limits:
               memory: 128Mi
       volumes:
-        - name: opengym-data
+        - name: jellogym-data
           persistentVolumeClaim:
-            claimName: opengym-data
+            claimName: jellogym-data
