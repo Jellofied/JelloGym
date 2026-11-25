@@ -24,9 +24,11 @@ git remote -v
   predate the rename.
 
 Work in a branch and open a pull request into `main`. Keep commits small and write
-the reason in the commit message. Branch protection requires the `tests-ok` check
-before a pull request can merge. Force pushes and branch deletion are off on
-`main`.
+the reason in the commit message. The required check is `tests-ok`. GitHub's
+branch protection API returned HTTP 403 because this is a free private repo, so
+the rule is procedural for now: do not merge until `tests-ok` is green, and do
+not force push or delete `main`. Upgrade the plan only if you want GitHub to
+enforce the rule.
 
 ## Checks before a pull request
 
