@@ -8,7 +8,7 @@
 // the card, the sheet and the PDF never disagree. A stretch with no workout gets no card at all:
 // nobody needs a recap of a week off.
 import { reportData } from './report.js'
-import { isoOf, todayISO, weekStartOf, weekKey } from './format.js'
+import { isoOf, todayISO, weekStartOf, weekDayOffset, weekKey } from './format.js'
 import { streakWeeks } from './streak.js'
 import { isOn } from './modules.js'
 import { dayTotal, goalProgress } from './water.js'
@@ -41,6 +41,22 @@ export function recapPeriod(S, today = todayISO()) {
     return { kind: 'week', from, to: addDays(today, -1), key: 'w:' + from }
   }
   return null
+}
+
+/**
+ * The stretch /recap shows: the due one, or the last closed week on any other day. The view needs
+ * a real range even when no recap is due, so `today` defaults to the local date here; passing it
+ * on from a caller that leaves it out used to build "Invalid Date" from `undefined`.
+ */
+export function shownRecapPeriod(S, today = todayISO()) {
+  const p = recapPeriod(S, today)
+  if (p) return p
+  const d = dateOf(today)
+  d.setDate(d.getDate() - weekDayOffset(d.getDay(), weekStartOf(S)) - 1)
+  const to = isoOf(d)
+  d.setDate(d.getDate() - 6)
+  const from = isoOf(d)
+  return { kind: 'week', from, to, key: 'w:' + from }
 }
 
 /** The numbers of a stretch: workouts, volume, sets, PRs, active days, the streak and the top muscle. */
