@@ -42,6 +42,7 @@ import { exitWorkoutEdit, startFlow, beginWorkout, bwSheet } from './sheets.jsx'
 import Icon from './components/Icon.jsx'
 import TabBar from './components/TabBar.jsx'
 import ScrollTopButton from './components/ScrollTopButton.jsx'
+import RouteLoading from './components/RouteLoading.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import Modals from './components/Modals.jsx'
 import Toast from './components/Toast.jsx'
@@ -64,8 +65,8 @@ import Workout from './views/Workout.jsx'
 // Screens most sessions never open (the Coach, the admin dashboard, photos, measurements, the
 // balance check) are their own chunks rather than part of the code every start parses: ~200 KB
 // of the main bundle. They are fetched once the app is idle after the start (the service worker
-// and the phone build hold them locally anyway), so by the time one is opened it renders at once,
-// in the same frame, as before; only a tap within the first moments can see one empty frame.
+// and the phone build hold them locally anyway), so most open at once; a tap before then shows
+// the shared loading state (components/RouteLoading.jsx), never an empty page.
 const views = []
 function lazyView(load) {
   let View = null
@@ -73,7 +74,7 @@ function lazyView(load) {
   const Lazy = lazy(fetchIt)
   views.push(fetchIt)
   return function LazyView(props) {
-    return View ? <View {...props} /> : <Suspense fallback={null}><Lazy {...props} /></Suspense>
+    return View ? <View {...props} /> : <Suspense fallback={<RouteLoading />}><Lazy {...props} /></Suspense>
   }
 }
 const Admin = lazyView(() => import('./views/Admin.jsx'))
@@ -409,7 +410,7 @@ function Shell() {
       <Modals />
       <Toast />
       <TimerFlash />
-      {tour && authed && <Suspense fallback={null}><Tour /></Suspense>}
+      {tour && authed && <Suspense fallback={<RouteLoading compact />}><Tour /></Suspense>}
       {/* Seasonal decoration (lib/seasonal.js): nothing, and nothing loaded, out of season. Never
           over a running workout or the first-launch screens. */}
       {authed && !needsMobileOnboarding && !permSteps && <SeasonalLayer hidden={inWorkout || loc.pathname === '/workout'} />}
