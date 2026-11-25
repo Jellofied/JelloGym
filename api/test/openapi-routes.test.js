@@ -14,7 +14,9 @@ import { fileURLToPath } from 'node:url';
 
 const API = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ROOT = path.join(API, '..');
-const read = f => fs.readFileSync(f, 'utf8');
+// A checkout can be LF or CRLF. Parse one shape so the same assertions hold on both.
+const lf = src => src.replace(/\r\n/g, '\n');
+const read = f => lf(fs.readFileSync(f, 'utf8'));
 const spec = read(path.join(API, 'openapi.yaml'));
 
 /** Every `'GET /api/x': async (req, res)` key in the route table. */
@@ -24,7 +26,7 @@ const routeKeys = src => [...src.matchAll(/^\s*'(GET|POST|PUT|DELETE) (\/api\/[^
 function specOperations(yaml) {
   const out = [];
   let inPaths = false, current = null;
-  for (const line of yaml.split('\n')) {
+  for (const line of lf(yaml).split('\n')) {
     if (/^paths:/.test(line)) { inPaths = true; continue; }
     if (inPaths && /^[a-zA-Z]/.test(line)) inPaths = false;     // the next top-level key ends it
     if (!inPaths) continue;
@@ -34,6 +36,28 @@ function specOperations(yaml) {
     if (m && current) out.push(`${m[1].toUpperCase()} ${current}`);
   }
   return out;
+}
+
+/** One operation's block, plus the shared responses it references. */
+function specOperation(yaml, p, method) {
+  const src = lf(yaml);
+  const from = src.indexOf(`\n  ${p}:\n`);
+  assert.ok(from >= 0, p);
+  const rest = src.slice(from + 1);
+  const block = rest.slice(0, rest.slice(1).search(/\n {2}\/|\n[a-zA-Z]/) + 1);
+  const at = block.indexOf(`\n    ${method}:`);
+  assert.ok(at >= 0, `${method} ${p}`);
+  const op = block.slice(at);
+  const end = op.slice(1).search(/\n {4}\w+:/);
+  const text = end < 0 ? op : op.slice(0, end + 1);
+  // Follow the shared responses it points at.
+  const refs = [...text.matchAll(/#\/components\/responses\/(\w+)/g)].map(m => {
+    const refAt = src.indexOf(`\n    ${m[1]}:\n`);
+    assert.ok(refAt >= 0, m[1]);
+    const tail = src.slice(refAt + 1);
+    return tail.slice(0, tail.slice(1).search(/\n {4}\w+:/) + 1);
+  });
+  return [text, ...refs].join('\n');
 }
 
 test('every route the server registers is in openapi.yaml, and nothing else is', () => {
@@ -77,22 +101,6 @@ test('every error code the e-mail and password signup routes return is in their 
     return server.slice(start, next < 0 ? undefined : start + 1 + next);
   };
   const emailCodes = Object.fromEntries([...server.matchAll(/^\s{2}(\w+): \{ error: '[^']*', code: '([^']+)' \}/gm)].map(m => [m[1], m[2]]));
-  const operation = (p, method) => {
-    const from = spec.indexOf(`\n  ${p}:\n`);
-    assert.ok(from >= 0, p);
-    const rest = spec.slice(from + 1);
-    const block = rest.slice(0, rest.slice(1).search(/\n {2}\/|\n[a-zA-Z]/) + 1);
-    const op = block.slice(block.indexOf(`\n    ${method}:`));
-    const end = op.slice(1).search(/\n {4}\w+:/);
-    const text = end < 0 ? op : op.slice(0, end + 1);
-    // Follow the shared responses it points at.
-    const refs = [...text.matchAll(/#\/components\/responses\/(\w+)/g)].map(m => {
-      const at = spec.indexOf(`\n    ${m[1]}:\n`);
-      const tail = spec.slice(at + 1);
-      return tail.slice(0, tail.slice(1).search(/\n {4}\w+:/) + 1);
-    });
-    return [text, ...refs].join('\n');
-  };
   for (const [key, p, method] of [
     ['POST /api/register/password', '/api/register/password', 'post'],
     ['POST /api/account/email', '/api/account/email', 'post']
@@ -103,8 +111,40 @@ test('every error code the e-mail and password signup routes return is in their 
       ...[...src.matchAll(/EMAIL_ERRORS\.(\w+)/g)].map(m => emailCodes[m[1]])
     ]);
     assert.ok(codes.size > 1, key);
-    const doc = operation(p, method);
+    const doc = specOperation(spec, p, method);
     for (const c of codes) assert.ok(doc.includes(c), `${key} returns "${c}" but its openapi entry never mentions it`);
+  }
+});
+
+test('the OpenAPI operation reader accepts LF and CRLF files', () => {
+  const lines = [
+    'paths:',
+    '  /api/register/password:',
+    '    post:',
+    '      responses:',
+    "        '400':",
+    '          description: email-invalid',
+    "        '409':",
+    '          description: email-taken',
+    "        '429': { $ref: '#/components/responses/TooManyRequests' }",
+    '  /api/account/email:',
+    '    post:',
+    '      responses:',
+    "        '400':",
+    '          description: not-on-the-password-route',
+    'components:',
+    '  responses:',
+    '    TooManyRequests:',
+    '      description: 429 too-many-attempts',
+    '    Busy:',
+    '      description: 503 busy'
+  ];
+  for (const [label, eol] of [['LF', '\n'], ['CRLF', '\r\n']]) {
+    const doc = specOperation(lines.join(eol) + eol, '/api/register/password', 'post');
+    for (const code of ['400', '409', '429', 'email-invalid', 'email-taken', 'too-many-attempts']) {
+      assert.ok(doc.includes(code), `${label}: ${code}`);
+    }
+    assert.doesNotMatch(doc, /not-on-the-password-route/, `${label}: operation leaked into the next path`);
   }
 });
 
