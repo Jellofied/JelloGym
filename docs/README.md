@@ -42,6 +42,8 @@ All settings live in `.env`; [`.env.example`](../.env.example) explains each one
 | Guide | Read it when |
 |---|---|
 | [Contributing](../CONTRIBUTING.md) | Before your first pull request: setup, guidelines, what CI checks |
+| [Private backup](PRIVATE_REPO.md) | You work in the private backup: remotes, branches and the checks before a pull request |
+| [Audit fix verification](audits/fix-verification.md) | You want the before and after evidence for the audit findings and gates |
 | [Architecture](ARCHITECTURE.md) | You want the map: how the app, server, phones and watch fit together, with diagrams |
 | [App stores and releases](APP_STORES.md) | You're shipping a release: the APK, Google Play and the App Store |
 | [scripts/](../scripts/README.md) | You want to know which build script does what |
