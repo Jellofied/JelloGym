@@ -39,8 +39,9 @@ beforeEach(async () => {
   window.scrollTo = vi.fn((x, y) => { scrolls.push([x, y]); Object.defineProperty(window, 'scrollY', { configurable: true, value: y }) })
   await act(async () => { root.render(<App />) })
   // Settings is its own chunk (App.jsx lazyView); the app fetches it right after the start. On a
-  // busy machine the first import of that chunk outlasts waitFor's default second.
-  await vi.waitFor(() => expect(document.querySelector('#app [data-back], #app .page-in > *')).not.toBeNull(), { timeout: 8000 })
+  // busy machine the first import of that chunk outlasts waitFor's default second. The loading
+  // state is a page child too, so it does not count as the view being ready.
+  await vi.waitFor(() => expect(document.querySelector('#app [data-back], #app .page-in > *:not(.route-loading)')).not.toBeNull(), { timeout: 8000 })
   await act(async () => {})
 })
 afterEach(() => {

@@ -310,6 +310,26 @@ button,.chip,.tile,.item,.wday,.cal-d,.swatch,.hm-c,.lrow,.seg button,.stp butto
 .quick-pill .qp-txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .quick-pill .qp-chev{flex:none;display:flex;color:var(--label-3)}
 
+/* The shared lazy-route fallback (components/RouteLoading.jsx): page-sized so the view arriving
+   is not a jump from nothing, but no card of its own. The compact form is a small pill over the
+   page for the tour chunk, below the tab bar in the stacking order. */
+.route-loading{
+  min-height:50vh;min-height:50dvh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  color:var(--label-2);font-size:var(--fs-footnote);line-height:var(--lh-small)
+}
+.route-loading-mark{
+  width:20px;height:20px;flex:none;border-radius:50%;
+  border:2px solid var(--surface-3);border-top-color:var(--label-2);
+  animation:route-loading-spin .8s linear infinite
+}
+@keyframes route-loading-spin{to{transform:rotate(360deg)}}
+.route-loading.compact{
+  position:fixed;top:50%;inset-inline-start:50%;transform:translate(-50%,-50%);z-index:46;
+  min-height:0;flex-direction:row;gap:8px;padding:8px 12px;border-radius:99px;
+  background:var(--surface);box-shadow:0 0 0 1px var(--raised-line)
+}
+
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 
 /* ------------------------------------------------------------ type scale -- */
