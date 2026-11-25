@@ -295,7 +295,9 @@ function Question({ kind, at }) {
   const preset = presetOf(S)
   const pick = id => { if (id !== preset) useStore.getState().update(s => applyPreset(s, id)) }
   return <div className="tour tour-ask">
-    <div className="tour-block tour-dim" />
+    {/* The first-boot dimmer covers the whole screen, including Home's gear. A tap on it is
+        the same as Skip: the tour never holds the app hostage. */}
+    <div className="tour-block tour-dim" data-testid="tour-backdrop" onClick={no} />
     <div className="tour-card tour-center" ref={cardRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="tour-t" aria-describedby="tour-b">
       {!resume && <>
         <h2 id="tour-m">{t('How much app do you want?')}</h2>
@@ -367,6 +369,9 @@ function Run({ at, flow = 'tour' }) {
     if (path === '/workout' || (!tutorial && completed)) nav('/home', { replace: true })
     else if (gone) nav('/plan', { replace: true })
   }
+  // A tap on the dimmed screen ends the tour like Skip, so a control outside the spotlight
+  // (the Home gear on first boot) is never behind a pane the user cannot get past in one tap.
+  const dismiss = () => finish(false)
   const go = dir => {
     dirRef.current = dir
     const j = stepFrom(steps, i, dir)
@@ -577,13 +582,14 @@ function Run({ at, flow = 'tour' }) {
   return <div className="tour" data-step={step.id} data-flow={flow}>
     {hole ? <>
       <div className="tour-hole" data-testid="tour-hole" style={{ ...hole, transition: motion }} />
-      {/* Four panes around the hole take the taps the dimmed screen should not get. */}
-      <div className="tour-block" style={{ top: 0, left: 0, right: 0, height: Math.max(0, hole.top) }} />
-      <div className="tour-block" style={{ top: hole.top + hole.height, left: 0, right: 0, bottom: 0 }} />
-      <div className="tour-block" style={{ top: hole.top, left: 0, width: Math.max(0, hole.left), height: hole.height }} />
-      <div className="tour-block" style={{ top: hole.top, left: hole.left + hole.width, right: 0, height: hole.height }} />
-      {!open && <div className="tour-block" style={hole} />}
-    </> : <div className="tour-block tour-dim" />}
+      {/* Four panes around the hole take the taps the dimmed screen should not get. One tap on
+          any of them ends the tour, the same as Skip, so nothing outside the spotlight traps. */}
+      <div className="tour-block" data-testid="tour-backdrop" onClick={dismiss} style={{ top: 0, left: 0, right: 0, height: Math.max(0, hole.top) }} />
+      <div className="tour-block" data-testid="tour-backdrop" onClick={dismiss} style={{ top: hole.top + hole.height, left: 0, right: 0, bottom: 0 }} />
+      <div className="tour-block" data-testid="tour-backdrop" onClick={dismiss} style={{ top: hole.top, left: 0, width: Math.max(0, hole.left), height: hole.height }} />
+      <div className="tour-block" data-testid="tour-backdrop" onClick={dismiss} style={{ top: hole.top, left: hole.left + hole.width, right: 0, height: hole.height }} />
+      {!open && <div className="tour-block" data-testid="tour-backdrop" onClick={dismiss} style={hole} />}
+    </> : <div className="tour-block tour-dim" data-testid="tour-backdrop" onClick={dismiss} />}
     <div className={'tour-card' + (hole ? '' : ' tour-center') + (step.id === 'done' ? ' tour-wide' : '')} ref={cardRef} tabIndex={-1}
       role="dialog" aria-modal="true" aria-labelledby="tour-t" aria-describedby="tour-b" data-side={hole ? pos.side : 'center'}
       style={{ ...(hole ? { top: pos.top, left: pos.left, transition: motion } : null), visibility: settling ? 'hidden' : undefined }}>

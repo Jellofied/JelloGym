@@ -44,7 +44,7 @@ function Screens({ skip = [] }) {
     nav('/plan/r/' + id)
   }
   return <div>
-    {ANCHORS.filter(a => !skip.includes(a)).map(a => <button key={a} data-tour={a} aria-label={'the ' + a}
+    {ANCHORS.filter(a => !skip.includes(a)).map(a => <button key={a} data-tour={a} aria-label={a === 'settings-gear' ? 'Settings' : 'the ' + a}
       onClick={() => { tapped = a; if (TABS[a]) nav(TABS[a], { replace: true }) }}>{a}</button>)}
     {where === '/plan' && <button data-tour="plan-new" onClick={newRoutine}>new routine</button>}
     {where === '/library' && <button data-tour="lib-new" onClick={() => useUI.getState().openSheet(() => <ExForm />)}>create</button>}
@@ -122,6 +122,22 @@ describe('the first-run question', () => {
     await click(btn('Skip'))
     expect(tourState()).toBe(null)
     expect(card()).toBe(null)
+  })
+  it('the first-boot backdrop dismisses on one tap, then the Settings gear opens Settings', async () => {
+    await act(async () => { openTour({ kind: 'offer' }) })
+    await render()
+    const gear = document.querySelector('button[aria-label="Settings"]')
+    expect(gear).toBeTruthy()
+    // The audit's rejected click landed on this pane over the gear, not on the button.
+    const backdrop = document.querySelector('[data-testid="tour-backdrop"]')
+    expect(backdrop.classList.contains('tour-block')).toBe(true)
+    await click(backdrop)
+    expect(tourState()).toBe(null)
+    expect(card()).toBe(null)
+    expect(where).toBe('/home')
+    await click(gear)
+    expect(tapped).toBe('settings-gear')
+    expect(where).toBe('/settings')
   })
   it('also asks how much app this profile wants (Settings → Modules): nothing picked until a tap, a tap applies it', async () => {
     useStore.setState(st => ({ S: { ...st.S, modules: undefined } }))
@@ -211,6 +227,13 @@ describe('the stops', () => {
     const touch = new Event('touchmove', { bubbles: true, cancelable: true })
     await act(async () => { card().dispatchEvent(touch) })
     expect(touch.defaultPrevented).toBe(true)
+  })
+  it('a tap on the dimmed screen ends a running tour like Skip, so nothing outside the spotlight holds', async () => {
+    await run('today')
+    expect(tourState()).toBeTruthy()
+    await click(document.querySelector('[data-testid="tour-backdrop"]'))
+    expect(tourState()).toBe(null)
+    expect(readTour().done).toBeGreaterThan(0)
   })
   it('a missing optional stop is passed over in the direction of travel', async () => {
     useStore.setState({ S: { ...clone(DEF), restSec: 90 } })
