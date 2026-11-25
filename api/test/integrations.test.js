@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { posixOnly } from './helpers.mjs';
 
 const { deriveKey, seal, open, signature, verifySignature, newSecret } = await import('../integrations/crypto.js');
 const { createStore, LOG_MAX, capRecord } = await import('../integrations/store.js');
@@ -67,7 +68,8 @@ test('connections are capped on the way in and the log keeps the newest 50', () 
   assert.ok(back.log.every(e => e.msg.length <= 160));
   // Read back from disk the same way, with the mode a secret-holding file gets.
   const file = path.join(dir, 'u-u1.json');
-  assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  // Windows chmod does not report POSIX mode bits; the cap, log and reload assertions still run.
+  if (posixOnly) assert.equal(fs.statSync(file).mode & 0o777, 0o600);
   const again = createStore({ dir, key: deriveKey(SECRET) }).get('u1', 'c1');
   assert.equal(again.log.length, LOG_MAX);
   store.removeUser('u1');

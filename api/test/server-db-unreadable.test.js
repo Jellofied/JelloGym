@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { boundPort } from './helpers.mjs';
+import { boundPort, posixOnly } from './helpers.mjs';
 
 const API = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SECRET = crypto.randomBytes(32).toString('hex');
@@ -73,7 +73,8 @@ test('db.json unreadable after a sign-up: the copy kept is the last save, so the
   assert.ok(carla);
   h.child.kill('SIGKILL'); await h.exit;
   assert.equal(fs.readFileSync(path.join(d, 'db.json.bak'), 'utf8'), fs.readFileSync(path.join(d, 'db.json'), 'utf8'));
-  assert.equal((fs.statSync(path.join(d, 'db.json.bak')).mode & 0o777), 0o600);
+  // Windows chmod does not report POSIX mode bits; the fallback assertions still run.
+  if (posixOnly) assert.equal((fs.statSync(path.join(d, 'db.json.bak')).mode & 0o777), 0o600);
   fs.writeFileSync(path.join(d, 'db.json'), '{"users":[{"id"');
   h = start(t, d, { PASSWORD_LOGIN: '1' });
   const base2 = `http://127.0.0.1:${await boundPort(h.child, () => h.log)}`;

@@ -15,7 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { boundPort } from './helpers.mjs';
+import { boundPort, withWriteFaults } from './helpers.mjs';
 
 const API = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SECRET = crypto.randomBytes(32).toString('hex');
@@ -39,17 +39,16 @@ async function startServer(t) {
   const child = spawn(process.execPath, ['server.js'], {
     cwd: API, stdio: ['ignore', 'pipe', 'pipe'],
     // AUDIT_LOG off and the reminder tick parked: the only write this test wants to fail is the prune's
-    env: {
+    env: withWriteFaults({
       ...process.env, PORT: '0', DATA_DIR: dataDir, ORIGIN: 'http://localhost:8080', RP_ID: 'localhost',
       AUDIT_LOG: '0', REMINDER_TICK_MS: '100000'
-    }
+    })
   });
   const h = { api: '', dataDir, log: '', exited: null };
   child.stdout.on('data', d => h.log += d);
   child.stderr.on('data', d => h.log += d);
   child.on('exit', (code, signal) => { h.exited = { code, signal }; });
   t.after(() => {
-    try { fs.chmodSync(dataDir, 0o700); } catch { /* already restored */ }
     child.kill('SIGKILL');
     fs.rmSync(dataDir, { recursive: true, force: true });
   });
@@ -59,37 +58,35 @@ async function startServer(t) {
   h.api = `http://127.0.0.1:${h.port}`;
   return h;
 }
-const unwritable = h => fs.chmodSync(h.dataDir, 0o500);
-// Root writes through a 0500 directory, so the failure these tests need cannot be made as root
-// (the GitLab CI container runs as root); they are skipped there rather than failing for it.
-const asRoot = typeof process.getuid === 'function' && process.getuid() === 0;
-const skip = asRoot ? 'running as root: a 0500 directory is still writable' : false;
-const writable = h => fs.chmodSync(h.dataDir, 0o700);
+// EACCES on db.json.tmp stands in for a read-only mount, full disk or EIO. chmod cannot deny
+// writes on Windows or to root, so the injected failure keeps both assertions active everywhere.
+const failSaves = h => fs.writeFileSync(path.join(h.dataDir, '.fail-db-save'), '');
+const restoreSaves = h => fs.rmSync(path.join(h.dataDir, '.fail-db-save'), { force: true });
 
-test('an unwritable ./data cannot take the process down through the rest timer nobody awaits', { skip }, async t => {
+test('an unwritable ./data cannot take the process down through the rest timer nobody awaits', async t => {
   const h = await startServer(t);
-  unwritable(h);
+  failSaves(h);
   const r = await fetch(`${h.api}/api/push/rest-timer`, {
     method: 'POST', headers: { ...cookie, 'Content-Type': 'application/json', Origin: 'http://localhost:8080' },
     body: JSON.stringify({ seconds: 1 })
   });
   assert.equal(r.status, 200);
   await new Promise(res => setTimeout(res, 2500));     // the timer fires at 1 s, then prunes
-  writable(h);
+  restoreSaves(h);
 
   assert.equal(h.exited, null, `the api exited on a failed prune save:\n${h.log}`);
   assert.equal((await fetch(`${h.api}/api/health`)).status, 200, 'still serving');
   assert.match(h.log, /push: could not save db.json/, 'and it said so, once, without a stack');
 });
 
-test('a push that was delivered is a 200 even when only the prune save failed', { skip }, async t => {
+test('a push that was delivered is a 200 even when only the prune save failed', async t => {
   const h = await startServer(t);
-  unwritable(h);
+  failSaves(h);
   const r = await fetch(`${h.api}/api/push/test`, {
     method: 'POST', headers: { ...cookie, Origin: 'http://localhost:8080' }
   });
   assert.equal(r.status, 200, 'the awaited caller does not report the bookkeeping failure');
   assert.deepEqual(await r.json(), { ok: true });
-  writable(h);
+  restoreSaves(h);
   assert.equal(h.exited, null, `the api exited on a failed prune save:\n${h.log}`);
 });

@@ -11,6 +11,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import webpush from 'web-push';
+import { withWriteFaults } from './helpers.mjs';
 
 const API = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SECRET = crypto.randomBytes(32).toString('hex');
@@ -31,9 +32,9 @@ function seedDir() {
 async function startServer(t, dataDir) {
   const child = spawn(process.execPath, ['server.js'], {
     cwd: API, stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, PORT: '0', DATA_DIR: dataDir, ORIGIN: 'http://localhost:8080', RP_ID: 'localhost' }
+    env: withWriteFaults({ ...process.env, PORT: '0', DATA_DIR: dataDir, ORIGIN: 'http://localhost:8080', RP_ID: 'localhost' })
   });
-  t.after(() => { child.kill('SIGKILL'); fs.chmodSync(dataDir, 0o700); fs.rmSync(dataDir, { recursive: true, force: true }); });
+  t.after(() => { child.kill('SIGKILL'); fs.rmSync(dataDir, { recursive: true, force: true }); });
   let log = '';
   // The boot line, not a health poll: the poll is what is under test here.
   const port = await new Promise((resolve, reject) => {
@@ -53,27 +54,24 @@ test('a writable data directory answers 200, and says so', async t => {
 });
 
 test('a data directory the server cannot write to is 503, not healthy', async t => {
-  if (typeof process.getuid === 'function' && process.getuid() === 0) {
-    t.skip('running as root: a mode that denies writes does not deny them to root');
-    return;
-  }
   const dir = seedDir();
   const h = await startServer(t, dir);
 
-  // Denied before the first poll, so nothing has been probed — or cached — yet.
-  fs.chmodSync(dir, 0o500);                       // r-x: the mount came back read-only
+  // EACCES on the probe stands in for a read-only mount or full disk. chmod cannot deny writes on
+  // Windows or to root, so the injected failure keeps this assertion honest on every host.
+  fs.writeFileSync(path.join(dir, '.fail-health-write'), '');
   const r = await fetch(`${h.api}/api/health`);
   assert.equal(r.status, 503, 'wget --spider reads this as unhealthy, which is the point');
   assert.deepEqual(await r.json(), { ok: false, writable: false });
   // The child's stderr is a pipe of its own, with no ordering guarantee against the socket the
-  // answer came back on — the line can land after the fetch resolves, and did in 1 run of 130.
+  // answer came back on, and the line can land after the fetch resolves (1 run in 130 did).
   for (let i = 0; i < 100 && !/health: cannot write to/.test(h.log()); i++) await new Promise(r => setTimeout(r, 20));
   assert.match(h.log(), /health: cannot write to/, 'and the operator is told which directory');
 
   // The probe is cached for five seconds, so the very next poll answers from it even though the
-  // directory is writable again — two polls, one probe, which is what keeps an unauthenticated
-  // route from being a disk write on demand.
-  fs.chmodSync(dir, 0o700);
+  // directory is writable again. Two polls, one probe: an unauthenticated route is not a disk
+  // write on demand.
+  fs.rmSync(path.join(dir, '.fail-health-write'));
   assert.equal((await fetch(`${h.api}/api/health`)).status, 503, 'the second poll did not probe again');
 
   // A window, not a latch: past it, it recovers on its own with no restart.

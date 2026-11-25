@@ -9,6 +9,16 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/* Windows chmod reports DOS attributes, not POSIX mode bits, and the API does not open a Unix
+ * admin socket there. Tests that assert 0600/0700 or drive recover.js gate on this and say why. */
+export const posixOnly = process.platform !== 'win32';
+export const posixModeReason = 'POSIX-only: Windows chmod does not report Unix mode bits';
+export const unixSocketReason = 'POSIX-only: the API does not open a Unix admin socket on Windows';
+/* Child-server fault injection: a marker file under DATA_DIR switches one write path to EACCES. */
+export const writeFaultFlag = `--require=${fileURLToPath(new URL('./fail-writes.cjs', import.meta.url)).replace(/\\/g, '/')}`;
+export const withWriteFaults = (env = {}) => ({ ...env, NODE_OPTIONS: [process.env.NODE_OPTIONS, writeFaultFlag].filter(Boolean).join(' ') });
 
 /* The port a spawned server.js actually bound.
  *

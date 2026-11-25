@@ -13,7 +13,7 @@ import { spawn, execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { hashLinkCode } from '../device-link.js';
 import { MAX_PASSKEYS } from '../passkeys-store.js';
-import { boundPort } from './helpers.mjs';
+import { boundPort, posixOnly, unixSocketReason } from './helpers.mjs';
 import { softPasskey, ORIGIN } from './soft-passkey.mjs';
 
 const API = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -139,7 +139,7 @@ test('a profile full of passkeys still gets back in: the one used longest ago ma
   assert.ok(h.audit().some(e => e.ev === 'auth.recovery.ok' && /replaced Key 0/.test(e.msg || '')));
 });
 
-test('recover.js asks the running server for the owner’s code, by name or by id', async t => {
+test('recover.js asks the running server for the owner’s code, by name or by id', { skip: posixOnly ? false : unixSocketReason }, async t => {
   const fresh = softPasskey();
   const h = await startServer(t, { users: [OWNER, ADMIN, ANA, user('u9', 'Ana')] });
   const r = await h.cli('Olga');
@@ -163,7 +163,7 @@ test('recover.js asks the running server for the owner’s code, by name or by i
   assert.equal((await h.cli()).code, 2);
 });
 
-test('the admin socket is private, and recover.js says so when no server runs', async t => {
+test('the admin socket is private, and recover.js says so when no server runs', { skip: posixOnly ? false : unixSocketReason }, async t => {
   const h = await startServer(t, { users: [OWNER] });
   const { socketDir, socketPath } = await import('../admin-socket.js');
   const dir = socketDir(h.env);
